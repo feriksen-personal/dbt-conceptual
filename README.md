@@ -272,6 +272,9 @@ ERROR: fact_returns realizes 'customer:returns:order'
 # Excalidraw — editable diagrams
 dbt-conceptual export --format excalidraw
 
+# PNG — static diagram image
+dbt-conceptual export --format png -o diagram.png
+
 # Mermaid — for docs and GitHub
 dbt-conceptual export --format mermaid
 
@@ -281,6 +284,8 @@ dbt-conceptual export --format coverage
 # Bus matrix — dimensions vs facts
 dbt-conceptual export --format bus-matrix
 ```
+
+**PNG Export Note:** Requires Pillow. Install with `pip install dbt-conceptual[png]`
 
 ---
 
