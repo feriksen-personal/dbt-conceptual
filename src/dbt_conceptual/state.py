@@ -11,7 +11,6 @@ class ConceptState:
     name: str
     domain: Optional[str] = None
     owner: Optional[str] = None
-    definition: Optional[str] = None
     description: Optional[str] = None  # Markdown description
     status: str = "stub"  # complete, draft, stub, deprecated
     silver_models: list[str] = field(default_factory=list)

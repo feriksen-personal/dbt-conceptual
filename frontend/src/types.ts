@@ -6,7 +6,6 @@ export interface Domain {
 
 export interface Concept {
   name: string;
-  definition?: string;
   description?: string;  // Markdown description
   domain?: string;
   owner?: string;

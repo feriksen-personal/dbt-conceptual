@@ -272,6 +272,24 @@ export default function GraphEditor({ state, setState }: Props) {
       .style('letter-spacing', '0.5px')
       .text(d => d.concept.status || 'draft')
 
+    // Add model count badges
+    node.append('text')
+      .attr('text-anchor', 'middle')
+      .attr('dy', '2.6em')
+      .attr('font-size', '10px')
+      .attr('font-weight', '400')
+      .attr('pointer-events', 'none')
+      .attr('fill', '#64748b')
+      .text(d => {
+        const silverCount = d.concept.silver_models?.length || 0
+        const goldCount = d.concept.gold_models?.length || 0
+        if (silverCount === 0 && goldCount === 0) return ''
+        const parts = []
+        if (silverCount > 0) parts.push(`📊 ${silverCount}`)
+        if (goldCount > 0) parts.push(`💎 ${goldCount}`)
+        return parts.join('  ')
+      })
+
     // Add arrow marker with better styling
     svg.append('defs').append('marker')
       .attr('id', 'arrowhead')
@@ -441,7 +459,7 @@ function ConceptPanel({ conceptId, concept, state, setState, onClose }: ConceptP
   return (
     <div className="panel">
       <div className="panel-header">
-        <h3>Edit Concept</h3>
+        <h3>Properties</h3>
         <button onClick={onClose}>✕</button>
       </div>
       <div className="panel-content">
@@ -451,14 +469,6 @@ function ConceptPanel({ conceptId, concept, state, setState, onClose }: ConceptP
             type="text"
             value={editedConcept.name}
             onChange={(e) => setEditedConcept({ ...editedConcept, name: e.target.value })}
-          />
-        </label>
-        <label>
-          Definition:
-          <textarea
-            value={editedConcept.definition || ''}
-            onChange={(e) => setEditedConcept({ ...editedConcept, definition: e.target.value })}
-            rows={3}
           />
         </label>
         <label>
@@ -506,6 +516,44 @@ function ConceptPanel({ conceptId, concept, state, setState, onClose }: ConceptP
               placeholder="Enter new domain ID (e.g., 'sales', 'finance')"
               style={{ marginTop: '8px' }}
             />
+          )}
+          {editedConcept.domain && (
+            <div style={{ marginTop: '8px' }}>
+              <label style={{ fontSize: '12px', color: '#64748b' }}>
+                Domain Color:
+                <select
+                  value={editedConcept.domain && state.domains[editedConcept.domain]?.color || ''}
+                  onChange={(e) => {
+                    if (editedConcept.domain) {
+                      setState({
+                        ...state,
+                        domains: {
+                          ...state.domains,
+                          [editedConcept.domain]: {
+                            ...state.domains[editedConcept.domain],
+                            name: state.domains[editedConcept.domain]?.name || editedConcept.domain,
+                            display_name: state.domains[editedConcept.domain]?.display_name || editedConcept.domain,
+                            color: e.target.value,
+                          }
+                        }
+                      })
+                    }
+                  }}
+                  style={{ marginTop: '4px', width: '100%' }}
+                >
+                  <option value="">Default (Light Blue)</option>
+                  <option value="#e9ecef" style={{backgroundColor: '#e9ecef'}}>⬜ Gray</option>
+                  <option value="#ffc9c9" style={{backgroundColor: '#ffc9c9'}}>🟥 Red</option>
+                  <option value="#ffd8a8" style={{backgroundColor: '#ffd8a8'}}>🟧 Orange</option>
+                  <option value="#ffec99" style={{backgroundColor: '#ffec99'}}>🟨 Yellow</option>
+                  <option value="#b2f2bb" style={{backgroundColor: '#b2f2bb'}}>🟩 Green</option>
+                  <option value="#a5d8ff" style={{backgroundColor: '#a5d8ff'}}>🟦 Cyan</option>
+                  <option value="#91a7ff" style={{backgroundColor: '#91a7ff'}}>🟦 Blue</option>
+                  <option value="#d0bfff" style={{backgroundColor: '#d0bfff'}}>🟪 Purple</option>
+                  <option value="#fcc2d7" style={{backgroundColor: '#fcc2d7'}}>🟪 Pink</option>
+                </select>
+              </label>
+            </div>
           )}
         </label>
         <label>
