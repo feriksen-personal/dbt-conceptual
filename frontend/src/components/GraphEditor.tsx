@@ -27,6 +27,7 @@ export default function GraphEditor({ state, setState }: Props) {
   const [selectedLink, setSelectedLink] = useState<string | null>(null)
   const [layout, setLayout] = useState<Record<string, { x: number; y: number }>>({})
   const [availableModels, setAvailableModels] = useState<{ silver: string[]; gold: string[] }>({ silver: [], gold: [] })
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; type: 'canvas' | 'node'; nodeId?: string } | null>(null)
 
   // Load layout on mount
   useEffect(() => {
@@ -52,6 +53,13 @@ export default function GraphEditor({ state, setState }: Props) {
       .catch(err => console.error('Failed to load models:', err))
   }, [])
 
+  // Close context menu on click
+  useEffect(() => {
+    const handleClick = () => setContextMenu(null)
+    document.addEventListener('click', handleClick)
+    return () => document.removeEventListener('click', handleClick)
+  }, [])
+
   // Save layout when positions change (debounced)
   const saveLayout = (positions: Record<string, { x: number; y: number }>) => {
     fetch('/api/layout', {
@@ -59,6 +67,65 @@ export default function GraphEditor({ state, setState }: Props) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ positions }),
     }).catch(err => console.error('Failed to save layout:', err))
+  }
+
+  // Create a new concept
+  const createNewConcept = () => {
+    const conceptName = prompt('Enter concept name:')
+    if (!conceptName) return
+
+    const conceptId = conceptName.toLowerCase().replace(/\s+/g, '_')
+    if (state.concepts[conceptId]) {
+      alert('A concept with this name already exists')
+      return
+    }
+
+    setState({
+      ...state,
+      concepts: {
+        ...state.concepts,
+        [conceptId]: {
+          name: conceptName,
+          status: 'draft',
+          bronze_models: [],
+          silver_models: [],
+          gold_models: [],
+        },
+      },
+    })
+    setSelectedNode(conceptId)
+  }
+
+  // Create a new relationship from a concept
+  const createNewRelationship = (fromConceptId: string) => {
+    const relationshipName = prompt('Enter relationship name:')
+    if (!relationshipName) return
+
+    const toConceptId = prompt('Enter target concept ID (choose from: ' + Object.keys(state.concepts).join(', ') + '):')
+    if (!toConceptId || !state.concepts[toConceptId]) {
+      alert('Invalid target concept')
+      return
+    }
+
+    const cardinality = prompt('Enter cardinality (e.g., 1:1, 1:N, N:M):')
+    if (!cardinality) return
+
+    const relationshipId = `${fromConceptId}_${relationshipName}_${toConceptId}`.toLowerCase().replace(/\s+/g, '_')
+
+    setState({
+      ...state,
+      relationships: {
+        ...state.relationships,
+        [relationshipId]: {
+          name: relationshipName,
+          from_concept: fromConceptId,
+          to_concept: toConceptId,
+          cardinality,
+          realized_by: [],
+        },
+      },
+    })
+    setSelectedLink(relationshipId)
   }
 
   useEffect(() => {
@@ -78,9 +145,9 @@ export default function GraphEditor({ state, setState }: Props) {
         label: concept.name,
         concept,
         domain: concept.domain,
-        color: concept.domain && state.domains[concept.domain]?.color
-          ? state.domains[concept.domain].color
-          : '#E3F2FD',
+        color: concept.color // Use concept color if specified
+          || (concept.domain && state.domains[concept.domain]?.color) // Otherwise use domain color
+          || '#E3F2FD', // Default fallback
       }
 
       // Apply saved position if available
@@ -123,7 +190,115 @@ export default function GraphEditor({ state, setState }: Props) {
 
     svg.call(zoom)
 
-    // Draw links with curved paths
+    // Add context menu for canvas (right-click)
+    svg.on('contextmenu', (event) => {
+      if (event.target === svgRef.current || event.target.tagName === 'svg') {
+        event.preventDefault()
+        setContextMenu({
+          x: event.clientX,
+          y: event.clientY,
+          type: 'canvas',
+        })
+      }
+    })
+
+    // Add crow's foot notation markers for different cardinalities
+    const defs = svg.append('defs')
+
+    // One (mandatory) - single line perpendicular to relationship line
+    defs.append('marker')
+      .attr('id', 'one')
+      .attr('viewBox', '-5 -5 10 10')
+      .attr('refX', 5)
+      .attr('refY', 0)
+      .attr('orient', 'auto')
+      .attr('markerWidth', 10)
+      .attr('markerHeight', 10)
+      .append('svg:line')
+      .attr('x1', 0)
+      .attr('y1', -4)
+      .attr('x2', 0)
+      .attr('y2', 4)
+      .attr('stroke', '#94a3b8')
+      .attr('stroke-width', 2)
+
+    // Many - crow's foot (three lines spreading out)
+    const manyMarker = defs.append('marker')
+      .attr('id', 'many')
+      .attr('viewBox', '-5 -5 10 10')
+      .attr('refX', 5)
+      .attr('refY', 0)
+      .attr('orient', 'auto')
+      .attr('markerWidth', 10)
+      .attr('markerHeight', 10)
+    manyMarker.append('svg:line')
+      .attr('x1', 0).attr('y1', -4).attr('x2', 5).attr('y2', 0)
+      .attr('stroke', '#94a3b8').attr('stroke-width', 2)
+    manyMarker.append('svg:line')
+      .attr('x1', 0).attr('y1', 0).attr('x2', 5).attr('y2', 0)
+      .attr('stroke', '#94a3b8').attr('stroke-width', 2)
+    manyMarker.append('svg:line')
+      .attr('x1', 0).attr('y1', 4).attr('x2', 5).attr('y2', 0)
+      .attr('stroke', '#94a3b8').attr('stroke-width', 2)
+
+    // Optional (zero) - small circle
+    defs.append('marker')
+      .attr('id', 'zero')
+      .attr('viewBox', '-5 -5 10 10')
+      .attr('refX', 5)
+      .attr('refY', 0)
+      .attr('orient', 'auto')
+      .attr('markerWidth', 10)
+      .attr('markerHeight', 10)
+      .append('svg:circle')
+      .attr('cx', 0)
+      .attr('cy', 0)
+      .attr('r', 2.5)
+      .attr('fill', 'none')
+      .attr('stroke', '#94a3b8')
+      .attr('stroke-width', 2)
+
+    // Unknown cardinality - question mark (for design-time/stubs)
+    const unknownMarker = defs.append('marker')
+      .attr('id', 'unknown')
+      .attr('viewBox', '-5 -5 10 10')
+      .attr('refX', 5)
+      .attr('refY', 0)
+      .attr('orient', 'auto')
+      .attr('markerWidth', 10)
+      .attr('markerHeight', 10)
+    unknownMarker.append('svg:text')
+      .attr('x', -1)
+      .attr('y', 2)
+      .attr('font-size', '8px')
+      .attr('font-weight', 'bold')
+      .attr('fill', '#94a3b8')
+      .text('?')
+
+    // Helper to parse cardinality and return marker IDs
+    const getCardinalityMarkers = (cardinality: string | undefined): { start: string; end: string } => {
+      if (!cardinality) return { start: 'unknown', end: 'unknown' }
+
+      // Parse cardinality like "1:1", "1:N", "0:N", "N:M", "?:?", etc.
+      const parts = cardinality.split(':').map(p => p.trim().toUpperCase())
+      if (parts.length !== 2) return { start: 'unknown', end: 'unknown' }
+
+      const getMarker = (part: string): string => {
+        if (part === '?' || part === 'UNKNOWN') return 'unknown'
+        if (part === '1') return 'one'
+        if (part === 'N' || part === 'M' || part === '*') return 'many'
+        if (part === '0' || part === '0..1') return 'zero'
+        if (part === '1..N' || part === '0..N') return 'many'
+        return 'unknown' // default to unknown for unrecognized
+      }
+
+      return {
+        start: getMarker(parts[0]),
+        end: getMarker(parts[1])
+      }
+    }
+
+    // Draw links with crow's foot notation
     const link = g.append('g')
       .selectAll('path')
       .data(links)
@@ -132,7 +307,14 @@ export default function GraphEditor({ state, setState }: Props) {
       .attr('fill', 'none')
       .attr('stroke', '#94a3b8')
       .attr('stroke-width', 2.5)
-      .attr('marker-end', 'url(#arrowhead)')
+      .attr('marker-start', d => {
+        const markers = getCardinalityMarkers(d.relationship.cardinality)
+        return markers.start ? `url(#${markers.start})` : ''
+      })
+      .attr('marker-end', d => {
+        const markers = getCardinalityMarkers(d.relationship.cardinality)
+        return markers.end ? `url(#${markers.end})` : ''
+      })
       .attr('opacity', 0.7)
       .style('cursor', 'pointer')
       .on('mouseenter', function() {
@@ -234,6 +416,16 @@ export default function GraphEditor({ state, setState }: Props) {
         setSelectedNode(d.id)
         setSelectedLink(null)
       })
+      .on('contextmenu', (event, d) => {
+        event.preventDefault()
+        event.stopPropagation()
+        setContextMenu({
+          x: event.clientX,
+          y: event.clientY,
+          type: 'node',
+          nodeId: d.id,
+        })
+      })
 
     // Add text to nodes with wrapping
     node.append('text')
@@ -273,48 +465,88 @@ export default function GraphEditor({ state, setState }: Props) {
         }
       })
 
-    // Add status badge
-    node.append('text')
-      .attr('text-anchor', 'middle')
-      .attr('dy', '1.8em')
-      .attr('font-size', '9px')
-      .attr('font-weight', '500')
-      .attr('pointer-events', 'none')
-      .attr('fill', '#64748b')
-      .style('text-transform', 'uppercase')
-      .style('letter-spacing', '0.5px')
-      .text(d => d.concept.status || 'draft')
-
-    // Add model count badges
-    node.append('text')
-      .attr('text-anchor', 'middle')
-      .attr('dy', '2.6em')
-      .attr('font-size', '10px')
-      .attr('font-weight', '400')
-      .attr('pointer-events', 'none')
-      .attr('fill', '#64748b')
-      .text(d => {
-        const silverCount = d.concept.silver_models?.length || 0
-        const goldCount = d.concept.gold_models?.length || 0
-        if (silverCount === 0 && goldCount === 0) return ''
-        const parts = []
-        if (silverCount > 0) parts.push(`📊 ${silverCount}`)
-        if (goldCount > 0) parts.push(`💎 ${goldCount}`)
-        return parts.join('  ')
+    // Add status indicator icon in top-right corner
+    node.append('circle')
+      .attr('cx', 55)
+      .attr('cy', -20)
+      .attr('r', 6)
+      .attr('fill', d => {
+        const status = d.concept.status || 'draft'
+        if (status === 'complete') return '#22c55e'
+        if (status === 'draft') return '#3b82f6'
+        if (status === 'stub') return '#94a3b8'
+        if (status === 'deprecated') return '#ef4444'
+        return '#94a3b8'
       })
+      .attr('stroke', 'white')
+      .attr('stroke-width', 1.5)
+      .attr('pointer-events', 'none')
 
-    // Add arrow marker with better styling
-    svg.append('defs').append('marker')
-      .attr('id', 'arrowhead')
-      .attr('viewBox', '-0 -5 10 10')
-      .attr('refX', 78) // Adjusted for box width
-      .attr('refY', 0)
-      .attr('orient', 'auto')
-      .attr('markerWidth', 10)
-      .attr('markerHeight', 10)
-      .append('svg:path')
-      .attr('d', 'M 0,-4 L 8,0 L 0,4 Z')
-      .attr('fill', '#94a3b8')
+    // Add checkmark for complete status
+    node.filter(d => d.concept.status === 'complete')
+      .append('text')
+      .attr('x', 55)
+      .attr('y', -19)
+      .attr('text-anchor', 'middle')
+      .attr('font-size', '8px')
+      .attr('font-weight', 'bold')
+      .attr('fill', 'white')
+      .attr('pointer-events', 'none')
+      .text('✓')
+
+    // Add model count badges with Databricks brick icons inside the box
+    const badgeGroup = node.append('g')
+      .attr('class', 'medallion-badges')
+      .attr('transform', 'translate(0, 18)')
+
+    badgeGroup.each(function(d) {
+      const bronzeCount = d.concept.bronze_models?.length || 0
+      const silverCount = d.concept.silver_models?.length || 0
+      const goldCount = d.concept.gold_models?.length || 0
+
+      // Always show all three medallion badges
+      const badges = [
+        { color: '#CD7F32', count: bronzeCount, label: 'Bronze' },
+        { color: '#C0C0C0', count: silverCount, label: 'Silver' },
+        { color: '#FFD700', count: goldCount, label: 'Gold' }
+      ]
+
+      const group = d3.select(this)
+      const totalWidth = badges.length * 30 - 5
+      const startX = -totalWidth / 2
+
+      badges.forEach((badge, i) => {
+        const badgeX = startX + i * 30
+
+        const badgeGroup = group.append('g')
+          .attr('transform', `translate(${badgeX}, 0)`)
+
+        // Databricks logo (layered brick pattern)
+        // Scale and center the icon (original is in 24x24 viewBox)
+        const scale = 0.5
+        const offsetX = -6
+        const offsetY = -5
+
+        badgeGroup.append('path')
+          .attr('d', 'M3 17l9 5l9 -5v-3l-9 5l-9 -5v-3l9 5l9 -5v-3l-9 5l-9 -5l9 -5l5.418 3.01')
+          .attr('transform', `translate(${offsetX}, ${offsetY}) scale(${scale})`)
+          .attr('fill', 'none')
+          .attr('stroke', badge.color)
+          .attr('stroke-width', 2)
+          .attr('stroke-linecap', 'round')
+          .attr('stroke-linejoin', 'round')
+
+        // Count text
+        badgeGroup.append('text')
+          .attr('x', 7)
+          .attr('y', 1)
+          .attr('text-anchor', 'start')
+          .attr('font-size', '9px')
+          .attr('font-weight', '600')
+          .attr('fill', '#1e293b')
+          .text(badge.count)
+      })
+    })
 
     // Helper function for orthogonal routing (Visio-style)
     const getOrthogonalPath = (source: GraphNode, target: GraphNode): string => {
@@ -406,6 +638,58 @@ export default function GraphEditor({ state, setState }: Props) {
     <div className="graph-editor">
       <div className="graph-canvas">
         <svg ref={svgRef} className="graph-svg" />
+        {contextMenu && (
+          <div
+            style={{
+              position: 'fixed',
+              left: contextMenu.x,
+              top: contextMenu.y,
+              backgroundColor: 'white',
+              border: '1px solid #cbd5e1',
+              borderRadius: '6px',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+              zIndex: 1000,
+              minWidth: '160px',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {contextMenu.type === 'canvas' ? (
+              <div
+                style={{
+                  padding: '8px 12px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                }}
+                onClick={() => {
+                  createNewConcept()
+                  setContextMenu(null)
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'white')}
+              >
+                Add New Concept
+              </div>
+            ) : (
+              <div
+                style={{
+                  padding: '8px 12px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                }}
+                onClick={() => {
+                  if (contextMenu.nodeId) {
+                    createNewRelationship(contextMenu.nodeId)
+                  }
+                  setContextMenu(null)
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'white')}
+              >
+                Add New Relationship
+              </div>
+            )}
+          </div>
+        )}
       </div>
       <div className="graph-sidebar">
         {selectedNode && (
@@ -450,11 +734,10 @@ interface ConceptPanelProps {
 }
 
 function ConceptPanel({ conceptId, concept, state, setState, onClose, availableModels }: ConceptPanelProps) {
-  const [editedConcept, setEditedConcept] = useState(concept)
   const [customDomain, setCustomDomain] = useState('')
   const [customOwner, setCustomOwner] = useState('')
-  const [newSilverModel, setNewSilverModel] = useState('')
-  const [newGoldModel, setNewGoldModel] = useState('')
+  const [activeTab, setActiveTab] = useState<'properties' | 'models'>('properties')
+  const [modelLayerTab, setModelLayerTab] = useState<'bronze' | 'silver' | 'gold'>('bronze')
 
   // Get unique owners from all concepts
   const existingOwners = Array.from(new Set(
@@ -463,37 +746,78 @@ function ConceptPanel({ conceptId, concept, state, setState, onClose, availableM
       .filter(o => o && o.trim() !== '')
   )).sort()
 
-  const handleSave = () => {
+  // Update concept directly in state (instant save)
+  const updateConcept = (updates: Partial<Concept>) => {
     setState({
       ...state,
       concepts: {
         ...state.concepts,
-        [conceptId]: editedConcept,
+        [conceptId]: { ...concept, ...updates },
       },
     })
-    onClose()
+  }
+
+  // Sort models: selected first, then unselected alphabetically
+  const getSortedModels = (allModels: string[], selectedModels: string[]) => {
+    const selected = allModels.filter(m => selectedModels.includes(m)).sort()
+    const unselected = allModels.filter(m => !selectedModels.includes(m)).sort()
+    return [...selected, ...unselected]
   }
 
   return (
     <div className="panel">
       <div className="panel-header">
-        <h3>Properties</h3>
+        <h3>{concept.name}</h3>
         <button onClick={onClose}>✕</button>
       </div>
-      <div className="panel-content">
+      <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
+        <button
+          onClick={() => setActiveTab('properties')}
+          style={{
+            flex: 1,
+            padding: '12px',
+            border: 'none',
+            background: activeTab === 'properties' ? 'white' : 'transparent',
+            borderBottom: activeTab === 'properties' ? '2px solid #3b82f6' : '2px solid transparent',
+            cursor: 'pointer',
+            fontWeight: activeTab === 'properties' ? '600' : '400',
+            color: activeTab === 'properties' ? '#1e293b' : '#64748b'
+          }}
+        >
+          Properties
+        </button>
+        <button
+          onClick={() => setActiveTab('models')}
+          style={{
+            flex: 1,
+            padding: '12px',
+            border: 'none',
+            background: activeTab === 'models' ? 'white' : 'transparent',
+            borderBottom: activeTab === 'models' ? '2px solid #3b82f6' : '2px solid transparent',
+            cursor: 'pointer',
+            fontWeight: activeTab === 'models' ? '600' : '400',
+            color: activeTab === 'models' ? '#1e293b' : '#64748b'
+          }}
+        >
+          Models ({(concept.bronze_models?.length || 0) + (concept.silver_models?.length || 0) + (concept.gold_models?.length || 0)})
+        </button>
+      </div>
+      <div className="panel-content">{activeTab === 'properties' ? (
+        // Properties Tab
+        <>
         <label>
           Name:
           <input
             type="text"
-            value={editedConcept.name}
-            onChange={(e) => setEditedConcept({ ...editedConcept, name: e.target.value })}
+            value={concept.name}
+            onChange={(e) => updateConcept({ name: e.target.value })}
           />
         </label>
         <label>
           Description (Markdown):
           <textarea
-            value={editedConcept.description || ''}
-            onChange={(e) => setEditedConcept({ ...editedConcept, description: e.target.value })}
+            value={concept.description || ''}
+            onChange={(e) => updateConcept({ description: e.target.value })}
             placeholder="Supports markdown formatting..."
             rows={6}
             style={{ fontFamily: 'monospace', fontSize: '12px' }}
@@ -503,12 +827,12 @@ function ConceptPanel({ conceptId, concept, state, setState, onClose, availableM
           Domain:
           <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
             <select
-              value={editedConcept.domain || ''}
+              value={concept.domain || ''}
               onChange={(e) => {
                 if (e.target.value === '__custom__') {
                   setCustomDomain('')
                 } else {
-                  setEditedConcept({ ...editedConcept, domain: e.target.value })
+                  updateConcept({ domain: e.target.value })
                   setCustomDomain('')
                 }
               }}
@@ -523,34 +847,34 @@ function ConceptPanel({ conceptId, concept, state, setState, onClose, availableM
               <option value="__custom__">+ Add new domain...</option>
             </select>
           </div>
-          {(editedConcept.domain === '' || customDomain !== '') && (
+          {(concept.domain === '' || customDomain !== '') && (
             <input
               type="text"
               value={customDomain}
               onChange={(e) => {
                 setCustomDomain(e.target.value)
-                setEditedConcept({ ...editedConcept, domain: e.target.value })
+                updateConcept({ domain: e.target.value })
               }}
               placeholder="Enter new domain ID (e.g., 'sales', 'finance')"
               style={{ marginTop: '8px' }}
             />
           )}
-          {editedConcept.domain && (
+          {concept.domain && (
             <div style={{ marginTop: '8px' }}>
               <label style={{ fontSize: '12px', color: '#64748b' }}>
                 Domain Color:
                 <select
-                  value={editedConcept.domain && state.domains[editedConcept.domain]?.color || ''}
+                  value={concept.domain && state.domains[concept.domain]?.color || ''}
                   onChange={(e) => {
-                    if (editedConcept.domain) {
+                    if (concept.domain) {
                       setState({
                         ...state,
                         domains: {
                           ...state.domains,
-                          [editedConcept.domain]: {
-                            ...state.domains[editedConcept.domain],
-                            name: state.domains[editedConcept.domain]?.name || editedConcept.domain,
-                            display_name: state.domains[editedConcept.domain]?.display_name || editedConcept.domain,
+                          [concept.domain]: {
+                            ...state.domains[concept.domain],
+                            name: state.domains[concept.domain]?.name || concept.domain,
+                            display_name: state.domains[concept.domain]?.display_name || concept.domain,
                             color: e.target.value,
                           }
                         }
@@ -578,12 +902,12 @@ function ConceptPanel({ conceptId, concept, state, setState, onClose, availableM
           Owner:
           <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
             <select
-              value={editedConcept.owner || ''}
+              value={concept.owner || ''}
               onChange={(e) => {
                 if (e.target.value === '__custom__') {
                   setCustomOwner('')
                 } else {
-                  setEditedConcept({ ...editedConcept, owner: e.target.value })
+                  updateConcept({ owner: e.target.value })
                   setCustomOwner('')
                 }
               }}
@@ -598,13 +922,13 @@ function ConceptPanel({ conceptId, concept, state, setState, onClose, availableM
               <option value="__custom__">+ Add new owner...</option>
             </select>
           </div>
-          {(editedConcept.owner === '' || customOwner !== '') && (
+          {(concept.owner === '' || customOwner !== '') && (
             <input
               type="text"
               value={customOwner}
               onChange={(e) => {
                 setCustomOwner(e.target.value)
-                setEditedConcept({ ...editedConcept, owner: e.target.value })
+                updateConcept({ owner: e.target.value })
               }}
               placeholder="Enter owner name (e.g., 'data_team', 'analytics')"
               style={{ marginTop: '8px' }}
@@ -614,8 +938,8 @@ function ConceptPanel({ conceptId, concept, state, setState, onClose, availableM
         <label>
           Status:
           <select
-            value={editedConcept.status || 'draft'}
-            onChange={(e) => setEditedConcept({ ...editedConcept, status: e.target.value as any })}
+            value={concept.status || 'draft'}
+            onChange={(e) => updateConcept({ status: e.target.value as any })}
           >
             <option value="draft">Draft</option>
             <option value="complete">Complete</option>
@@ -623,132 +947,164 @@ function ConceptPanel({ conceptId, concept, state, setState, onClose, availableM
             <option value="deprecated">Deprecated</option>
           </select>
         </label>
-
-        <div style={{ marginTop: '24px', borderTop: '1px solid #e2e8f0', paddingTop: '16px' }}>
-          <label>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <span>Silver Models ({editedConcept.silver_models?.length || 0}):</span>
-            </div>
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-              <input
-                type="text"
-                value={newSilverModel}
-                onChange={(e) => setNewSilverModel(e.target.value)}
-                placeholder="Enter model name..."
-                style={{ flex: 1 }}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter' && newSilverModel.trim()) {
-                    setEditedConcept({
-                      ...editedConcept,
-                      silver_models: [...(editedConcept.silver_models || []), newSilverModel.trim()]
-                    })
-                    setNewSilverModel('')
-                  }
-                }}
-              />
+        <label>
+          Color:
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <input
+              type="color"
+              value={concept.color || (concept.domain && state.domains[concept.domain]?.color) || '#E3F2FD'}
+              onChange={(e) => updateConcept({ color: e.target.value })}
+              style={{ width: '60px', height: '36px', cursor: 'pointer' }}
+            />
+            <span style={{ fontSize: '12px', color: '#64748b' }}>
+              {concept.color ? 'Custom' : `From ${concept.domain || 'default'}`}
+            </span>
+            {concept.color && (
               <button
                 type="button"
-                onClick={() => {
-                  if (newSilverModel.trim()) {
-                    setEditedConcept({
-                      ...editedConcept,
-                      silver_models: [...(editedConcept.silver_models || []), newSilverModel.trim()]
-                    })
-                    setNewSilverModel('')
-                  }
-                }}
-                style={{ padding: '6px 12px', fontSize: '14px' }}
+                onClick={() => updateConcept({ color: undefined })}
+                style={{ padding: '4px 8px', fontSize: '12px' }}
               >
-                Add
+                Reset
               </button>
-            </div>
-            {editedConcept.silver_models && editedConcept.silver_models.length > 0 && (
-              <div style={{ maxHeight: '120px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '4px', padding: '8px' }}>
-                {editedConcept.silver_models.map((model, idx) => (
-                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0' }}>
-                    <span style={{ fontSize: '13px', fontFamily: 'monospace' }}>{model}</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditedConcept({
-                          ...editedConcept,
-                          silver_models: editedConcept.silver_models.filter((_, i) => i !== idx)
-                        })
-                      }}
-                      style={{ padding: '2px 8px', fontSize: '12px', color: '#ef4444' }}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ))}
-              </div>
             )}
-          </label>
+          </div>
+        </label>
+        </>
+      ) : (
+        // Models Tab
+        <>
+        <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', backgroundColor: '#f1f5f9', marginBottom: '12px' }}>
+          <button
+            onClick={() => setModelLayerTab('bronze')}
+            style={{
+              flex: 1,
+              padding: '10px',
+              border: 'none',
+              background: modelLayerTab === 'bronze' ? 'white' : 'transparent',
+              borderBottom: modelLayerTab === 'bronze' ? '2px solid #3b82f6' : '2px solid transparent',
+              cursor: 'pointer',
+              fontWeight: modelLayerTab === 'bronze' ? '600' : '400',
+              color: modelLayerTab === 'bronze' ? '#1e293b' : '#64748b',
+              fontSize: '13px'
+            }}
+          >
+            🥉 Bronze ({concept.bronze_models?.length || 0})
+          </button>
+          <button
+            onClick={() => setModelLayerTab('silver')}
+            style={{
+              flex: 1,
+              padding: '10px',
+              border: 'none',
+              background: modelLayerTab === 'silver' ? 'white' : 'transparent',
+              borderBottom: modelLayerTab === 'silver' ? '2px solid #3b82f6' : '2px solid transparent',
+              cursor: 'pointer',
+              fontWeight: modelLayerTab === 'silver' ? '600' : '400',
+              color: modelLayerTab === 'silver' ? '#1e293b' : '#64748b',
+              fontSize: '13px'
+            }}
+          >
+            🥈 Silver ({concept.silver_models?.length || 0})
+          </button>
+          <button
+            onClick={() => setModelLayerTab('gold')}
+            style={{
+              flex: 1,
+              padding: '10px',
+              border: 'none',
+              background: modelLayerTab === 'gold' ? 'white' : 'transparent',
+              borderBottom: modelLayerTab === 'gold' ? '2px solid #3b82f6' : '2px solid transparent',
+              cursor: 'pointer',
+              fontWeight: modelLayerTab === 'gold' ? '600' : '400',
+              color: modelLayerTab === 'gold' ? '#1e293b' : '#64748b',
+              fontSize: '13px'
+            }}
+          >
+            🥇 Gold ({concept.gold_models?.length || 0})
+          </button>
         </div>
 
-        <div style={{ marginTop: '16px' }}>
-          <label>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <span>Gold Models ({editedConcept.gold_models?.length || 0}):</span>
+        {modelLayerTab === 'bronze' ? (
+          <div>
+            <div style={{ marginBottom: '12px', padding: '8px', backgroundColor: '#fef3c7', border: '1px solid #fcd34d', borderRadius: '4px', fontSize: '12px', color: '#78350f' }}>
+              Bronze sources are automatically discovered from manifest.json (run dbt parse/compile first)
             </div>
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-              <input
-                type="text"
-                value={newGoldModel}
-                onChange={(e) => setNewGoldModel(e.target.value)}
-                placeholder="Enter model name..."
-                style={{ flex: 1 }}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter' && newGoldModel.trim()) {
-                    setEditedConcept({
-                      ...editedConcept,
-                      gold_models: [...(editedConcept.gold_models || []), newGoldModel.trim()]
-                    })
-                    setNewGoldModel('')
-                  }
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  if (newGoldModel.trim()) {
-                    setEditedConcept({
-                      ...editedConcept,
-                      gold_models: [...(editedConcept.gold_models || []), newGoldModel.trim()]
-                    })
-                    setNewGoldModel('')
-                  }
-                }}
-                style={{ padding: '6px 12px', fontSize: '14px' }}
-              >
-                Add
-              </button>
-            </div>
-            {editedConcept.gold_models && editedConcept.gold_models.length > 0 && (
-              <div style={{ maxHeight: '120px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '4px', padding: '8px' }}>
-                {editedConcept.gold_models.map((model, idx) => (
-                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0' }}>
-                    <span style={{ fontSize: '13px', fontFamily: 'monospace' }}>{model}</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditedConcept({
-                          ...editedConcept,
-                          gold_models: editedConcept.gold_models.filter((_, i) => i !== idx)
-                        })
-                      }}
-                      style={{ padding: '2px 8px', fontSize: '12px', color: '#ef4444' }}
-                    >
-                      Remove
-                    </button>
+            <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '4px', padding: '8px', backgroundColor: '#f8fafc' }}>
+              {concept.bronze_models?.length === 0 ? (
+                <div style={{ padding: '8px', color: '#64748b', fontSize: '13px' }}>No bronze sources found</div>
+              ) : (
+                concept.bronze_models?.map(model => (
+                  <div key={model} style={{ padding: '6px 4px', fontFamily: 'monospace', fontSize: '13px', color: '#1e293b' }}>
+                    {model}
                   </div>
-                ))}
-              </div>
-            )}
-          </label>
-        </div>
-
-        <button onClick={handleSave} className="save-panel-btn" style={{ marginTop: '16px' }}>Save Changes</button>
+                ))
+              )}
+            </div>
+          </div>
+        ) : modelLayerTab === 'silver' ? (
+          <div>
+            <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '4px', padding: '8px', backgroundColor: '#f8fafc' }}>
+              {availableModels.silver.length === 0 ? (
+                <div style={{ padding: '8px', color: '#64748b', fontSize: '13px' }}>No silver models found</div>
+              ) : (
+                getSortedModels(availableModels.silver, concept.silver_models || []).map(model => (
+                  <label key={model} style={{ display: 'flex', alignItems: 'center', padding: '6px 4px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={concept.silver_models?.includes(model) || false}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          updateConcept({
+                            silver_models: [...(concept.silver_models || []), model]
+                          })
+                        } else {
+                          updateConcept({
+                            silver_models: (concept.silver_models || []).filter(m => m !== model)
+                          })
+                        }
+                      }}
+                      style={{ width: '16px', height: '16px', margin: '0 8px 0 0', flexShrink: 0 }}
+                    />
+                    <span style={{ fontFamily: 'monospace', fontSize: '13px', flex: 1 }}>{model}</span>
+                  </label>
+                ))
+              )}
+            </div>
+          </div>
+        ) : (
+          <div>
+            <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '4px', padding: '8px', backgroundColor: '#f8fafc' }}>
+              {availableModels.gold.length === 0 ? (
+                <div style={{ padding: '8px', color: '#64748b', fontSize: '13px' }}>No gold models found</div>
+              ) : (
+                getSortedModels(availableModels.gold, concept.gold_models || []).map(model => (
+                  <label key={model} style={{ display: 'flex', alignItems: 'center', padding: '6px 4px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={concept.gold_models?.includes(model) || false}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          updateConcept({
+                            gold_models: [...(concept.gold_models || []), model]
+                          })
+                        } else {
+                          updateConcept({
+                            gold_models: (concept.gold_models || []).filter(m => m !== model)
+                          })
+                        }
+                      }}
+                      style={{ width: '16px', height: '16px', margin: '0 8px 0 0', flexShrink: 0 }}
+                    />
+                    <span style={{ fontFamily: 'monospace', fontSize: '13px', flex: 1 }}>{model}</span>
+                  </label>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+        </>
+      )}
       </div>
     </div>
   )
@@ -764,40 +1120,79 @@ interface RelationshipPanelProps {
 }
 
 function RelationshipPanel({ relationshipId, relationship, state, setState, onClose, availableModels }: RelationshipPanelProps) {
-  const [editedRel, setEditedRel] = useState(relationship)
-  const [newRealizedByModel, setNewRealizedByModel] = useState('')
+  const [activeTab, setActiveTab] = useState<'properties' | 'models'>('properties')
 
-  const handleSave = () => {
+  // Update relationship directly in state (instant save)
+  const updateRelationship = (updates: Partial<Relationship>) => {
     setState({
       ...state,
       relationships: {
         ...state.relationships,
-        [relationshipId]: editedRel,
+        [relationshipId]: { ...relationship, ...updates },
       },
     })
-    onClose()
+  }
+
+  // Sort models: selected first, then unselected alphabetically
+  const getSortedModels = (allModels: string[], selectedModels: string[]) => {
+    const selected = allModels.filter(m => selectedModels.includes(m)).sort()
+    const unselected = allModels.filter(m => !selectedModels.includes(m)).sort()
+    return [...selected, ...unselected]
   }
 
   return (
     <div className="panel">
       <div className="panel-header">
-        <h3>Edit Relationship</h3>
+        <h3>{editedRel.name}</h3>
         <button onClick={onClose}>✕</button>
       </div>
-      <div className="panel-content">
+      <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
+        <button
+          onClick={() => setActiveTab('properties')}
+          style={{
+            flex: 1,
+            padding: '12px',
+            border: 'none',
+            background: activeTab === 'properties' ? 'white' : 'transparent',
+            borderBottom: activeTab === 'properties' ? '2px solid #3b82f6' : '2px solid transparent',
+            cursor: 'pointer',
+            fontWeight: activeTab === 'properties' ? '600' : '400',
+            color: activeTab === 'properties' ? '#1e293b' : '#64748b'
+          }}
+        >
+          Properties
+        </button>
+        <button
+          onClick={() => setActiveTab('models')}
+          style={{
+            flex: 1,
+            padding: '12px',
+            border: 'none',
+            background: activeTab === 'models' ? 'white' : 'transparent',
+            borderBottom: activeTab === 'models' ? '2px solid #3b82f6' : '2px solid transparent',
+            cursor: 'pointer',
+            fontWeight: activeTab === 'models' ? '600' : '400',
+            color: activeTab === 'models' ? '#1e293b' : '#64748b'
+          }}
+        >
+          Models ({editedRel.realized_by?.length || 0})
+        </button>
+      </div>
+      <div className="panel-content">{activeTab === 'properties' ? (
+        <>
         <label>
           Name:
           <input
             type="text"
-            value={editedRel.name}
-            onChange={(e) => setEditedRel({ ...editedRel, name: e.target.value })}
+            value={relationship.name}
+            onChange={(e) => updateRelationship({ name: e.target.value })}
           />
         </label>
         <label>
           From:
           <select
-            value={editedRel.from_concept}
-            onChange={(e) => setEditedRel({ ...editedRel, from_concept: e.target.value })}
+            value={relationship.from_concept}
+            onChange={(e) => updateRelationship({ from_concept: e.target.value })}
           >
             {Object.entries(state.concepts).map(([id, concept]) => (
               <option key={id} value={id}>{concept.name}</option>
@@ -807,8 +1202,8 @@ function RelationshipPanel({ relationshipId, relationship, state, setState, onCl
         <label>
           To:
           <select
-            value={editedRel.to_concept}
-            onChange={(e) => setEditedRel({ ...editedRel, to_concept: e.target.value })}
+            value={relationship.to_concept}
+            onChange={(e) => updateRelationship({ to_concept: e.target.value })}
           >
             {Object.entries(state.concepts).map(([id, concept]) => (
               <option key={id} value={id}>{concept.name}</option>
@@ -818,8 +1213,8 @@ function RelationshipPanel({ relationshipId, relationship, state, setState, onCl
         <label>
           Cardinality (informational):
           <select
-            value={editedRel.cardinality || ''}
-            onChange={(e) => setEditedRel({ ...editedRel, cardinality: e.target.value })}
+            value={relationship.cardinality || ''}
+            onChange={(e) => updateRelationship({ cardinality: e.target.value })}
           >
             <option value="">Not specified</option>
             <option value="1:1">1:1 (One to One)</option>
@@ -834,77 +1229,52 @@ function RelationshipPanel({ relationshipId, relationship, state, setState, onCl
         <label>
           Description (Markdown):
           <textarea
-            value={editedRel.description || ''}
-            onChange={(e) => setEditedRel({ ...editedRel, description: e.target.value })}
+            value={relationship.description || ''}
+            onChange={(e) => updateRelationship({ description: e.target.value })}
             placeholder="Supports markdown formatting..."
             rows={6}
             style={{ fontFamily: 'monospace', fontSize: '12px' }}
           />
         </label>
-
-        <div style={{ marginTop: '24px', borderTop: '1px solid #e2e8f0', paddingTop: '16px' }}>
+        </>
+      ) : (
+        <>
+        <div style={{ marginTop: '8px' }}>
           <label>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <span>Realized By Models ({editedRel.realized_by?.length || 0}):</span>
+              <span>Realized By Models ({relationship.realized_by?.length || 0}):</span>
             </div>
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-              <input
-                type="text"
-                value={newRealizedByModel}
-                onChange={(e) => setNewRealizedByModel(e.target.value)}
-                placeholder="Enter model name..."
-                style={{ flex: 1 }}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter' && newRealizedByModel.trim()) {
-                    setEditedRel({
-                      ...editedRel,
-                      realized_by: [...(editedRel.realized_by || []), newRealizedByModel.trim()]
-                    })
-                    setNewRealizedByModel('')
-                  }
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  if (newRealizedByModel.trim()) {
-                    setEditedRel({
-                      ...editedRel,
-                      realized_by: [...(editedRel.realized_by || []), newRealizedByModel.trim()]
-                    })
-                    setNewRealizedByModel('')
-                  }
-                }}
-                style={{ padding: '6px 12px', fontSize: '14px' }}
-              >
-                Add
-              </button>
-            </div>
-            {editedRel.realized_by && editedRel.realized_by.length > 0 && (
-              <div style={{ maxHeight: '120px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '4px', padding: '8px' }}>
-                {editedRel.realized_by.map((model, idx) => (
-                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0' }}>
-                    <span style={{ fontSize: '13px', fontFamily: 'monospace' }}>{model}</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditedRel({
-                          ...editedRel,
-                          realized_by: editedRel.realized_by.filter((_, i) => i !== idx)
-                        })
+            <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '4px', padding: '8px', backgroundColor: '#f8fafc' }}>
+              {[...availableModels.silver, ...availableModels.gold].length === 0 ? (
+                <div style={{ padding: '8px', color: '#64748b', fontSize: '13px' }}>No models found</div>
+              ) : (
+                getSortedModels([...availableModels.silver, ...availableModels.gold], relationship.realized_by || []).map(model => (
+                  <label key={model} style={{ display: 'flex', alignItems: 'center', padding: '6px 4px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={relationship.realized_by?.includes(model) || false}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          updateRelationship({
+                            realized_by: [...(relationship.realized_by || []), model]
+                          })
+                        } else {
+                          updateRelationship({
+                            realized_by: (relationship.realized_by || []).filter(m => m !== model)
+                          })
+                        }
                       }}
-                      style={{ padding: '2px 8px', fontSize: '12px', color: '#ef4444' }}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
+                      style={{ width: '16px', height: '16px', margin: '0 8px 0 0', flexShrink: 0 }}
+                    />
+                    <span style={{ fontFamily: 'monospace', fontSize: '13px', flex: 1 }}>{model}</span>
+                  </label>
+                ))
+              )}
+            </div>
           </label>
         </div>
-
-        <button onClick={handleSave} className="save-panel-btn" style={{ marginTop: '16px' }}>Save Changes</button>
+        </>
+      )}
       </div>
     </div>
   )
