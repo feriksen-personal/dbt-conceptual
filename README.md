@@ -114,25 +114,82 @@ pip install dbt-conceptual
 
 ## Quick Start
 
-```bash
-# Initialize in your dbt project
-cd my-dbt-project
-dbt-conceptual init
+Try it with the [jaffle-shop](https://github.com/dbt-labs/jaffle-shop) demo project:
 
-# If you already have meta.concept tags, generate the conceptual model
-dbt-conceptual sync --create-stubs
+```bash
+# Clone jaffle-shop
+git clone https://github.com/dbt-labs/jaffle-shop.git
+cd jaffle-shop
+
+# Install dbt-conceptual
+pip install dbt-conceptual[serve]
+
+# Initialize conceptual model
+dbt-conceptual init
+# This creates models/conceptual/conceptual.yml
+
+# Define your business concepts (see example below)
+# Edit models/conceptual/conceptual.yml
 
 # View coverage
 dbt-conceptual status
 
-# Launch visual editor
+# Launch interactive UI
 dbt-conceptual serve
 
 # Validate in CI
 dbt-conceptual validate
 
-# Export diagram
-dbt-conceptual export --format excalidraw
+# Export diagrams
+dbt-conceptual export --format excalidraw -o diagram.excalidraw
+```
+
+**Example conceptual.yml for jaffle-shop:**
+```yaml
+version: 1
+
+domains:
+  party:
+    name: Party
+    color: "#E3F2FD"
+  transaction:
+    name: Transaction
+    color: "#FFF3E0"
+
+concepts:
+  customer:
+    name: Customer
+    domain: party
+    definition: "A person or entity that places orders"
+    status: complete
+
+  order:
+    name: Order
+    domain: transaction
+    definition: "A purchase transaction made by a customer"
+    status: complete
+
+relationships:
+  - name: places
+    from: customer
+    to: order
+    cardinality: "1:N"
+```
+
+Then tag your dbt models:
+```yaml
+# models/customers.yml
+models:
+  - name: customers
+    meta:
+      concept: customer
+
+# models/orders.yml
+models:
+  - name: orders
+    meta:
+      realizes:
+        - customer:places:order
 ```
 
 ---
@@ -160,19 +217,40 @@ catalog (1 concept)
   ✓ product [complete]      [S:●]  [G:●]
 ```
 
-### 🎨 Visual Editor
+### 🎨 Interactive Web UI
 
-Interactive viewer with hand-drawn Excalidraw aesthetic:
+Launch a visual editor for your conceptual model with real-time editing:
 
 ```bash
 $ dbt-conceptual serve
-Serving at http://localhost:8080
+Starting dbt-conceptual UI server...
+Open your browser to: http://127.0.0.1:5000
 ```
 
-- Drag concepts to arrange
-- Click to edit properties
-- Draw new relationships
-- Saves directly to YAML
+**Features:**
+- **Graph Editor** — Interactive force-directed graph visualization with D3.js
+  - Drag and position concepts
+  - Click concepts/relationships to edit
+  - Real-time visual updates
+  - Domain-based coloring
+  - Zoom and pan canvas
+- **Direct Editing** — Changes save directly to `conceptual.yml`
+  - Edit concept name, description, definition, domain, owner, status
+  - Edit relationship name, from/to concepts, cardinality, description
+  - No sync needed - what you see is what gets saved
+- **Integrated Reports** — View coverage and bus matrix in tabs
+  - Coverage Report tab shows concept completion and implementations
+  - Bus Matrix tab shows which fact tables realize which relationships
+  - Switch between Editor, Coverage, and Bus Matrix views
+
+**Installation:**
+```bash
+# UI requires Flask
+pip install dbt-conceptual[serve]
+
+# Or install Flask separately
+pip install flask
+```
 
 ### ✅ CI Validation
 
