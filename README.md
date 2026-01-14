@@ -3,8 +3,8 @@
 [![PyPI version](https://img.shields.io/pypi/v/dbt-conceptual.svg)](https://pypi.org/project/dbt-conceptual/)
 [![Python versions](https://img.shields.io/pypi/pyversions/dbt-conceptual.svg)](https://pypi.org/project/dbt-conceptual/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![CI](https://github.com/YOUR_USERNAME/dbt-conceptual/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_USERNAME/dbt-conceptual/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/YOUR_USERNAME/dbt-conceptual/branch/main/graph/badge.svg)](https://codecov.io/gh/YOUR_USERNAME/dbt-conceptual)
+[![CI](https://github.com/feriksen-personal/dbt-conceptual/actions/workflows/ci.yml/badge.svg)](https://github.com/feriksen-personal/dbt-conceptual/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/feriksen-personal/dbt-conceptual/branch/main/graph/badge.svg)](https://codecov.io/gh/feriksen-personal/dbt-conceptual)
 [![Downloads](https://img.shields.io/pypi/dm/dbt-conceptual.svg)](https://pypi.org/project/dbt-conceptual/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
@@ -20,6 +20,16 @@ This tool is built for a specific architecture. It expects:
 - **dbt** — Your transformation layer
 - **Medallion architecture** — Silver (cleaned/conformed) → Gold (business/integrated)
 - **Dimensional modeling** — dims, facts, bridges in gold
+
+**What we're opinionated about:**
+- Naming conventions (`dim_`, `fact_`, `bridge_` prefixes)
+- Layer structure (silver/gold concepts)
+- Conceptual model in a single `conceptual.yml` file
+
+**What we're flexible about:**
+- Whether you use one `schema.yml` per model or shared schema files
+- Your specific silver/gold path names (configurable)
+- Whether you use dbt groups, tags, or other organizational features
 
 If that's not your stack, this tool is not for you. No judgment — just not the target audience.
 
@@ -45,7 +55,7 @@ When someone asks *"Do we have Customer data?"* — you grep through 200 models 
 **dbt-conceptual** tracks which business concepts your dbt models implement:
 
 ```yaml
-# models/conceptual/model.yml
+# models/conceptual/conceptual.yml
 concepts:
   customer:
     domain: party
@@ -200,7 +210,7 @@ dbt-conceptual export --format bus-matrix
 
 ### 1. Define Concepts
 
-Create `models/conceptual/model.yml`:
+Create `models/conceptual/conceptual.yml`:
 
 ```yaml
 version: 1
@@ -378,7 +388,7 @@ PRs that work > PRs with extensive documentation about why they might work.
 
 ```bash
 # Development setup
-git clone https://github.com/YOUR_USERNAME/dbt-conceptual.git
+git clone https://github.com/feriksen-personal/dbt-conceptual.git
 cd dbt-conceptual
 pip install -e ".[dev]"
 
