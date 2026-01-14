@@ -114,25 +114,82 @@ pip install dbt-conceptual
 
 ## Quick Start
 
-```bash
-# Initialize in your dbt project
-cd my-dbt-project
-dbt-conceptual init
+Try it with the [jaffle-shop](https://github.com/dbt-labs/jaffle-shop) demo project:
 
-# If you already have meta.concept tags, generate the conceptual model
-dbt-conceptual sync --create-stubs
+```bash
+# Clone jaffle-shop
+git clone https://github.com/dbt-labs/jaffle-shop.git
+cd jaffle-shop
+
+# Install dbt-conceptual
+pip install dbt-conceptual[serve]
+
+# Initialize conceptual model
+dbt-conceptual init
+# This creates models/conceptual/conceptual.yml
+
+# Define your business concepts (see example below)
+# Edit models/conceptual/conceptual.yml
 
 # View coverage
 dbt-conceptual status
 
-# Launch visual editor
+# Launch interactive UI
 dbt-conceptual serve
 
 # Validate in CI
 dbt-conceptual validate
 
-# Export diagram
-dbt-conceptual export --format excalidraw
+# Export diagrams
+dbt-conceptual export --format excalidraw -o diagram.excalidraw
+```
+
+**Example conceptual.yml for jaffle-shop:**
+```yaml
+version: 1
+
+domains:
+  party:
+    name: Party
+    color: "#E3F2FD"
+  transaction:
+    name: Transaction
+    color: "#FFF3E0"
+
+concepts:
+  customer:
+    name: Customer
+    domain: party
+    definition: "A person or entity that places orders"
+    status: complete
+
+  order:
+    name: Order
+    domain: transaction
+    definition: "A purchase transaction made by a customer"
+    status: complete
+
+relationships:
+  - name: places
+    from: customer
+    to: order
+    cardinality: "1:N"
+```
+
+Then tag your dbt models:
+```yaml
+# models/customers.yml
+models:
+  - name: customers
+    meta:
+      concept: customer
+
+# models/orders.yml
+models:
+  - name: orders
+    meta:
+      realizes:
+        - customer:places:order
 ```
 
 ---
