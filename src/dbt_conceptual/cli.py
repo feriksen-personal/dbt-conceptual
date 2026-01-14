@@ -514,5 +514,63 @@ def sync(project_dir: Optional[Path], create_stubs: bool, model: Optional[str]) 
     )
 
 
+@main.command()
+@click.option(
+    "--project-dir",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    default=None,
+    help="Path to dbt project directory",
+)
+@click.option(
+    "--format",
+    type=click.Choice(["mermaid"], case_sensitive=False),
+    default="mermaid",
+    help="Export format",
+)
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(path_type=Path),
+    help="Output file (default: stdout)",
+)
+def export(
+    project_dir: Optional[Path], format: str, output: Optional[Path]
+) -> None:
+    """Export conceptual model to various formats.
+
+    Examples:
+        dbt-conceptual export --format mermaid
+        dbt-conceptual export --format mermaid -o diagram.mmd
+    """
+    from dbt_conceptual.exporter import export_mermaid
+
+    config = Config.load(project_dir=project_dir)
+
+    # Check conceptual.yml exists
+    if not config.conceptual_file.exists():
+        console.print(
+            f"[red]Error: conceptual.yml not found at {config.conceptual_file}[/red]"
+        )
+        console.print(
+            "\n[yellow]Tip:[/yellow] Run 'dbt-conceptual init' to create a new conceptual model"
+        )
+        raise click.Abort()
+
+    # Build state
+    builder = StateBuilder(config)
+    state = builder.build()
+
+    # Export based on format
+    if format == "mermaid":
+        if output:
+            with open(output, "w") as f:
+                export_mermaid(state, f)
+            console.print(f"[green]✓ Exported to {output}[/green]")
+        else:
+            import sys
+
+            export_mermaid(state, sys.stdout)
+
+
 if __name__ == "__main__":
     main()
