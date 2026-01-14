@@ -153,6 +153,3 @@ logs/
 # Prompt files
 .prompt
 PUBLISHING.md
-
-# Frontend build output (static files served by Flask)
-src/dbt_conceptual/static/
