@@ -667,9 +667,9 @@ def export(project_dir: Optional[Path], format: str, output: Optional[Path]) -> 
 )
 @click.option(
     "--port",
-    default=5000,
+    default=8050,
     type=int,
-    help="Port to bind to (default: 5000)",
+    help="Port to bind to (default: 8050)",
 )
 def serve(project_dir: Optional[Path], host: str, port: int) -> None:
     """Launch the interactive web UI for editing conceptual models.
@@ -686,6 +686,10 @@ def serve(project_dir: Optional[Path], host: str, port: int) -> None:
         dbt-conceptual serve
         dbt-conceptual serve --port 8080
         dbt-conceptual serve --host 0.0.0.0 --port 3000
+
+    Note:
+        Port 5000 is often occupied by macOS AirPlay Receiver.
+        Default is 8050 to avoid conflicts.
     """
     try:
         from dbt_conceptual.server import run_server

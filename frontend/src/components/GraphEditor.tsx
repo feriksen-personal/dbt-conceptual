@@ -25,6 +25,28 @@ export default function GraphEditor({ state, setState }: Props) {
   const svgRef = useRef<SVGSVGElement>(null)
   const [selectedNode, setSelectedNode] = useState<string | null>(null)
   const [selectedLink, setSelectedLink] = useState<string | null>(null)
+  const [layout, setLayout] = useState<Record<string, { x: number; y: number }>>({})
+
+  // Load layout on mount
+  useEffect(() => {
+    fetch('/api/layout')
+      .then(res => res.json())
+      .then(data => {
+        if (data && typeof data === 'object' && !data.error) {
+          setLayout(data)
+        }
+      })
+      .catch(err => console.error('Failed to load layout:', err))
+  }, [])
+
+  // Save layout when positions change (debounced)
+  const saveLayout = (positions: Record<string, { x: number; y: number }>) => {
+    fetch('/api/layout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ positions }),
+    }).catch(err => console.error('Failed to save layout:', err))
+  }
 
   useEffect(() => {
     if (!svgRef.current) return
@@ -36,16 +58,28 @@ export default function GraphEditor({ state, setState }: Props) {
     const width = svgRef.current.clientWidth
     const height = svgRef.current.clientHeight
 
-    // Create graph data
-    const nodes: GraphNode[] = Object.entries(state.concepts).map(([id, concept]) => ({
-      id,
-      label: concept.name,
-      concept,
-      domain: concept.domain,
-      color: concept.domain && state.domains[concept.domain]?.color
-        ? state.domains[concept.domain].color
-        : '#E3F2FD',
-    }))
+    // Create graph data with saved positions
+    const nodes: GraphNode[] = Object.entries(state.concepts).map(([id, concept]) => {
+      const node: GraphNode = {
+        id,
+        label: concept.name,
+        concept,
+        domain: concept.domain,
+        color: concept.domain && state.domains[concept.domain]?.color
+          ? state.domains[concept.domain].color
+          : '#E3F2FD',
+      }
+
+      // Apply saved position if available
+      if (layout[id]) {
+        node.x = layout[id].x
+        node.y = layout[id].y
+        node.fx = layout[id].x
+        node.fy = layout[id].y
+      }
+
+      return node
+    })
 
     const links: GraphLink[] = Object.entries(state.relationships).map(([id, rel]) => ({
       id,
@@ -54,14 +88,15 @@ export default function GraphEditor({ state, setState }: Props) {
       relationship: rel,
     }))
 
-    // Create force simulation
+    // Create force simulation with gentler forces
     const simulation = d3.forceSimulation(nodes)
       .force('link', d3.forceLink<GraphNode, GraphLink>(links)
         .id(d => d.id)
-        .distance(150))
-      .force('charge', d3.forceManyBody().strength(-300))
+        .distance(200))
+      .force('charge', d3.forceManyBody().strength(-500))
       .force('center', d3.forceCenter(width / 2, height / 2))
-      .force('collision', d3.forceCollide().radius(60))
+      .force('collision', d3.forceCollide().radius(80))
+      .alphaDecay(0.02) // Slower decay for smoother settling
 
     // Create container for zoom
     const g = svg.append('g')
@@ -75,30 +110,62 @@ export default function GraphEditor({ state, setState }: Props) {
 
     svg.call(zoom)
 
-    // Draw links
+    // Draw links with curved paths
     const link = g.append('g')
-      .selectAll('line')
+      .selectAll('path')
       .data(links)
-      .join('line')
+      .join('path')
       .attr('class', 'link')
-      .attr('stroke', '#999')
-      .attr('stroke-width', 2)
+      .attr('fill', 'none')
+      .attr('stroke', '#94a3b8')
+      .attr('stroke-width', 2.5)
       .attr('marker-end', 'url(#arrowhead)')
+      .attr('opacity', 0.7)
+      .style('cursor', 'pointer')
+      .on('mouseenter', function() {
+        d3.select(this).attr('stroke', '#475569').attr('stroke-width', 3).attr('opacity', 1)
+      })
+      .on('mouseleave', function() {
+        d3.select(this).attr('stroke', '#94a3b8').attr('stroke-width', 2.5).attr('opacity', 0.7)
+      })
       .on('click', (_event, d) => {
         setSelectedLink(d.id)
         setSelectedNode(null)
       })
 
-    // Draw link labels
-    const linkLabel = g.append('g')
-      .selectAll('text')
+    // Draw link labels with background
+    const linkLabelGroup = g.append('g')
+      .selectAll('g')
       .data(links)
-      .join('text')
+      .join('g')
+      .attr('class', 'link-label-group')
+
+    // Add background rect for better readability
+    linkLabelGroup.append('rect')
+      .attr('fill', 'white')
+      .attr('rx', 4)
+      .attr('ry', 4)
+      .attr('opacity', 0.9)
+
+    // Add text
+    const linkLabel = linkLabelGroup.append('text')
       .attr('class', 'link-label')
       .attr('text-anchor', 'middle')
-      .attr('font-size', '12px')
-      .attr('fill', '#666')
+      .attr('font-size', '11px')
+      .attr('font-weight', '500')
+      .attr('fill', '#475569')
       .text(d => d.relationship.name)
+
+    // Size background to text
+    linkLabel.each(function() {
+      const bbox = (this as SVGTextElement).getBBox()
+      d3.select((this as SVGTextElement).parentNode as SVGGElement)
+        .select('rect')
+        .attr('x', bbox.x - 4)
+        .attr('y', bbox.y - 2)
+        .attr('width', bbox.width + 8)
+        .attr('height', bbox.height + 4)
+    })
 
     // Draw nodes
     const node = g.append('g')
@@ -118,63 +185,182 @@ export default function GraphEditor({ state, setState }: Props) {
         })
         .on('end', (event, d) => {
           if (!event.active) simulation.alphaTarget(0)
-          d.fx = null
-          d.fy = null
+          // Keep position fixed after drag
+          d.fx = event.x
+          d.fy = event.y
+
+          // Save all positions to layout.yml
+          const positions: Record<string, { x: number; y: number }> = {}
+          nodes.forEach(node => {
+            if (node.x !== undefined && node.y !== undefined) {
+              positions[node.id] = { x: node.x, y: node.y }
+            }
+          })
+          saveLayout(positions)
         }))
 
-    // Add circles to nodes
-    node.append('circle')
-      .attr('r', 40)
+    // Add rounded rectangles (boxes) to nodes
+    node.append('rect')
+      .attr('width', 140)
+      .attr('height', 70)
+      .attr('x', -70)
+      .attr('y', -35)
+      .attr('rx', 8)
+      .attr('ry', 8)
       .attr('fill', d => d.color)
-      .attr('stroke', '#333')
+      .attr('stroke', '#334155')
       .attr('stroke-width', 2)
+      .style('cursor', 'pointer')
+      .on('mouseenter', function() {
+        d3.select(this).attr('stroke-width', 3).attr('stroke', '#1e293b')
+      })
+      .on('mouseleave', function() {
+        d3.select(this).attr('stroke-width', 2).attr('stroke', '#334155')
+      })
       .on('click', (_event, d) => {
         setSelectedNode(d.id)
         setSelectedLink(null)
       })
 
-    // Add text to nodes
+    // Add text to nodes with wrapping
     node.append('text')
       .attr('text-anchor', 'middle')
-      .attr('dy', '0.3em')
-      .attr('font-size', '14px')
-      .attr('font-weight', 'bold')
+      .attr('dy', '-0.3em')
+      .attr('font-size', '13px')
+      .attr('font-weight', '600')
+      .attr('fill', '#1e293b')
       .attr('pointer-events', 'none')
-      .text(d => d.label)
+      .each(function(d) {
+        const text = d3.select(this)
+        const words = d.label.split(/\s+/)
+        const maxWidth = 120
 
-    // Add status indicator
+        // Simple two-line wrapping
+        if (words.length > 2) {
+          const mid = Math.ceil(words.length / 2)
+          text.append('tspan')
+            .attr('x', 0)
+            .attr('dy', '-0.5em')
+            .text(words.slice(0, mid).join(' '))
+          text.append('tspan')
+            .attr('x', 0)
+            .attr('dy', '1.2em')
+            .text(words.slice(mid).join(' '))
+        } else if (words.length > 1) {
+          text.append('tspan')
+            .attr('x', 0)
+            .attr('dy', '-0.3em')
+            .text(words[0])
+          text.append('tspan')
+            .attr('x', 0)
+            .attr('dy', '1.2em')
+            .text(words.slice(1).join(' '))
+        } else {
+          text.text(d.label)
+        }
+      })
+
+    // Add status badge
     node.append('text')
       .attr('text-anchor', 'middle')
-      .attr('dy', '1.5em')
-      .attr('font-size', '10px')
+      .attr('dy', '1.8em')
+      .attr('font-size', '9px')
+      .attr('font-weight', '500')
       .attr('pointer-events', 'none')
-      .attr('fill', '#666')
+      .attr('fill', '#64748b')
+      .style('text-transform', 'uppercase')
+      .style('letter-spacing', '0.5px')
       .text(d => d.concept.status || 'draft')
 
-    // Add arrow marker
+    // Add arrow marker with better styling
     svg.append('defs').append('marker')
       .attr('id', 'arrowhead')
       .attr('viewBox', '-0 -5 10 10')
-      .attr('refX', 50)
+      .attr('refX', 78) // Adjusted for box width
       .attr('refY', 0)
       .attr('orient', 'auto')
-      .attr('markerWidth', 8)
-      .attr('markerHeight', 8)
+      .attr('markerWidth', 10)
+      .attr('markerHeight', 10)
       .append('svg:path')
-      .attr('d', 'M 0,-5 L 10 ,0 L 0,5')
-      .attr('fill', '#999')
+      .attr('d', 'M 0,-4 L 8,0 L 0,4 Z')
+      .attr('fill', '#94a3b8')
+
+    // Helper function for orthogonal routing (Visio-style)
+    const getOrthogonalPath = (source: GraphNode, target: GraphNode): string => {
+      const sx = source.x!
+      const sy = source.y!
+      const tx = target.x!
+      const ty = target.y!
+
+      // Box dimensions
+      const boxWidth = 140
+      const boxHeight = 70
+      const halfWidth = boxWidth / 2
+      const halfHeight = boxHeight / 2
+
+      // Calculate which sides to connect
+      const dx = tx - sx
+      const dy = ty - sy
+
+      // Determine start and end points on box edges
+      let startX = sx
+      let startY = sy
+      let endX = tx
+      let endY = ty
+
+      // Start point (from source box)
+      if (Math.abs(dx) > Math.abs(dy)) {
+        // Horizontal connection
+        startX = dx > 0 ? sx + halfWidth : sx - halfWidth
+        startY = sy
+      } else {
+        // Vertical connection
+        startX = sx
+        startY = dy > 0 ? sy + halfHeight : sy - halfHeight
+      }
+
+      // End point (to target box)
+      if (Math.abs(dx) > Math.abs(dy)) {
+        // Horizontal connection
+        endX = dx > 0 ? tx - halfWidth : tx + halfWidth
+        endY = ty
+      } else {
+        // Vertical connection
+        endX = tx
+        endY = dy > 0 ? ty - halfHeight : ty + halfHeight
+      }
+
+      // Create orthogonal path with one or two bends
+      const midX = (startX + endX) / 2
+      const midY = (startY + endY) / 2
+
+      // Simple orthogonal: horizontal then vertical, or vice versa
+      if (Math.abs(dx) > Math.abs(dy)) {
+        // Go horizontal first, then vertical
+        return `M ${startX},${startY} L ${midX},${startY} L ${midX},${endY} L ${endX},${endY}`
+      } else {
+        // Go vertical first, then horizontal
+        return `M ${startX},${startY} L ${startX},${midY} L ${endX},${midY} L ${endX},${endY}`
+      }
+    }
 
     // Update positions on tick
     simulation.on('tick', () => {
-      link
-        .attr('x1', d => (d.source as GraphNode).x!)
-        .attr('y1', d => (d.source as GraphNode).y!)
-        .attr('x2', d => (d.target as GraphNode).x!)
-        .attr('y2', d => (d.target as GraphNode).y!)
+      // Update orthogonal link paths
+      link.attr('d', d => {
+        const source = d.source as GraphNode
+        const target = d.target as GraphNode
+        return getOrthogonalPath(source, target)
+      })
 
-      linkLabel
-        .attr('x', d => ((d.source as GraphNode).x! + (d.target as GraphNode).x!) / 2)
-        .attr('y', d => ((d.source as GraphNode).y! + (d.target as GraphNode).y!) / 2)
+      // Update link labels
+      linkLabelGroup.attr('transform', d => {
+        const source = d.source as GraphNode
+        const target = d.target as GraphNode
+        const x = (source.x! + target.x!) / 2
+        const y = (source.y! + target.y!) / 2
+        return `translate(${x},${y})`
+      })
 
       node.attr('transform', d => `translate(${d.x},${d.y})`)
     })
@@ -183,7 +369,7 @@ export default function GraphEditor({ state, setState }: Props) {
     return () => {
       simulation.stop()
     }
-  }, [state])
+  }, [state, layout])
 
   return (
     <div className="graph-editor">

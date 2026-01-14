@@ -194,16 +194,56 @@ def create_app(project_dir: Path) -> Flask:
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
+    @app.route("/api/layout", methods=["GET"])
+    def get_layout() -> Any:
+        """Get layout positions from layout.yml."""
+        try:
+            layout_file = config.layout_file
+            if not layout_file.exists():
+                return jsonify({"positions": {}})
+
+            import yaml
+
+            with open(layout_file, "r") as f:
+                layout_data = yaml.safe_load(f) or {}
+
+            return jsonify(layout_data.get("positions", {}))
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/layout", methods=["POST"])
+    def save_layout() -> Any:
+        """Save layout positions to layout.yml."""
+        try:
+            data = request.json
+            if not data:
+                return jsonify({"error": "No data provided"}), 400
+
+            layout_file = config.layout_file
+
+            # Prepare layout data
+            layout_data = {"version": 1, "positions": data.get("positions", {})}
+
+            # Write to file
+            import yaml
+
+            with open(layout_file, "w") as f:
+                yaml.dump(layout_data, f, sort_keys=False, default_flow_style=False)
+
+            return jsonify({"success": True, "message": "Layout saved"})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
     return app
 
 
-def run_server(project_dir: Path, host: str = "127.0.0.1", port: int = 5000) -> None:
+def run_server(project_dir: Path, host: str = "127.0.0.1", port: int = 8050) -> None:
     """Run the Flask development server.
 
     Args:
         project_dir: Path to dbt project directory
-        host: Host to bind to
-        port: Port to bind to
+        host: Host to bind to (default: 127.0.0.1)
+        port: Port to bind to (default: 8050)
     """
     app = create_app(project_dir)
     app.run(host=host, port=port, debug=True)
