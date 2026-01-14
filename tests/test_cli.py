@@ -120,7 +120,9 @@ def test_cli_status_with_project() -> None:
             yaml.dump(
                 {
                     "version": 2,
-                    "models": [{"name": "dim_customer", "meta": {"concept": "customer"}}],
+                    "models": [
+                        {"name": "dim_customer", "meta": {"concept": "customer"}}
+                    ],
                 },
                 f,
             )
@@ -172,7 +174,9 @@ def test_cli_validate_no_errors() -> None:
             yaml.dump(
                 {
                     "version": 2,
-                    "models": [{"name": "dim_customer", "meta": {"concept": "customer"}}],
+                    "models": [
+                        {"name": "dim_customer", "meta": {"concept": "customer"}}
+                    ],
                 },
                 f,
             )
@@ -219,7 +223,10 @@ def test_cli_validate_with_errors() -> None:
                 {
                     "version": 2,
                     "models": [
-                        {"name": "fact_orders", "meta": {"realizes": ["customer:places:order"]}}
+                        {
+                            "name": "fact_orders",
+                            "meta": {"realizes": ["customer:places:order"]},
+                        }
                     ],
                 },
                 f,

@@ -101,7 +101,9 @@ def test_scanner_scan_all() -> None:
             yaml.dump(
                 {
                     "version": 2,
-                    "models": [{"name": "stg_customers", "meta": {"concept": "customer"}}],
+                    "models": [
+                        {"name": "stg_customers", "meta": {"concept": "customer"}}
+                    ],
                 },
                 f,
             )
@@ -151,7 +153,10 @@ def test_scanner_handles_invalid_yaml() -> None:
         # Create valid YAML
         with open(gold_dir / "good.yml", "w") as f:
             yaml.dump(
-                {"version": 2, "models": [{"name": "dim_test", "meta": {"concept": "test"}}]},
+                {
+                    "version": 2,
+                    "models": [{"name": "dim_test", "meta": {"concept": "test"}}],
+                },
                 f,
             )
 
@@ -177,7 +182,10 @@ def test_scanner_handles_empty_models_list() -> None:
         gold_dir = tmppath / "models" / "gold"
         gold_dir.mkdir(parents=True)
 
-        schema_data = {"version": 2, "sources": [{"name": "raw", "tables": [{"name": "users"}]}]}
+        schema_data = {
+            "version": 2,
+            "sources": [{"name": "raw", "tables": [{"name": "users"}]}],
+        }
 
         schema_file = gold_dir / "schema.yml"
         with open(schema_file, "w") as f:

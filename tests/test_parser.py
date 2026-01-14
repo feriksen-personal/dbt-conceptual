@@ -62,7 +62,12 @@ def test_parse_conceptual_model_with_domains() -> None:
                 }
             },
             "relationships": [
-                {"name": "places", "from": "customer", "to": "order", "cardinality": "1:N"}
+                {
+                    "name": "places",
+                    "from": "customer",
+                    "to": "order",
+                    "cardinality": "1:N",
+                }
             ],
         }
 
