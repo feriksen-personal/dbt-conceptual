@@ -116,6 +116,39 @@ def status(
         console.print("[yellow]These models have no concept or realizes tags:[/yellow]")
         for model in state.orphan_models:
             console.print(f"  - {model}")
+        console.print(
+            "\n[dim]Tip: Run 'dbt-conceptual sync --create-stubs' to create stub concepts[/dim]"
+        )
+
+    # Summary: Concepts needing attention
+    incomplete_concepts = [
+        (cid, c)
+        for cid, c in state.concepts.items()
+        if c.status not in ["complete", "deprecated"]
+        and (not c.domain or not c.owner or not c.definition)
+    ]
+
+    if incomplete_concepts:
+        console.print("\n[bold]Concepts Needing Attention[/bold]")
+        console.print("=" * 50)
+        console.print(
+            f"[yellow]{len(incomplete_concepts)} concept(s) missing required attributes:[/yellow]"
+        )
+        for concept_id, concept in incomplete_concepts:
+            missing = []
+            if not concept.domain:
+                missing.append("domain")
+            if not concept.owner:
+                missing.append("owner")
+            if not concept.definition:
+                missing.append("definition")
+
+            console.print(
+                f"  • {concept_id} [{concept.status}] - missing: {', '.join(missing)}"
+            )
+        console.print(
+            "\n[dim]Edit models/conceptual/conceptual.yml to add missing attributes[/dim]"
+        )
 
     console.print()
 
@@ -148,7 +181,8 @@ def _print_concept_status(concept_id: str, concept: ConceptState) -> None:
         f"{concept_id} [{concept.status}]  {s_badge} {g_badge}"
     )
 
-    if concept.status == "stub":
+    # Show missing attributes for any non-complete, non-deprecated concept
+    if concept.status not in ["complete", "deprecated"]:
         missing = []
         if not concept.domain:
             missing.append("domain")

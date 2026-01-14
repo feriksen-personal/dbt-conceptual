@@ -351,6 +351,9 @@ def test_cli_status_with_stub_concept() -> None:
         assert "payment" in result.output
         assert "⚠" in result.output  # Warning icon for stub
         assert "missing" in result.output
+        # Should show in "Concepts Needing Attention" section
+        assert "Concepts Needing Attention" in result.output
+        assert "missing: domain, owner, definition" in result.output
 
 
 def test_cli_status_with_deprecated_concept() -> None:
@@ -596,6 +599,46 @@ def test_cli_validate_with_info_messages() -> None:
 
         assert result.exit_code == 0
         assert "INFO" in result.output
+
+
+def test_cli_status_with_draft_concept_missing_attrs() -> None:
+    """Test status shows missing attributes for draft concepts."""
+    runner = CliRunner()
+
+    with TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+
+        # Create dbt_project.yml
+        with open(tmppath / "dbt_project.yml", "w") as f:
+            yaml.dump({"name": "test"}, f)
+
+        # Create conceptual.yml with draft concept missing owner
+        conceptual_dir = tmppath / "models" / "conceptual"
+        conceptual_dir.mkdir(parents=True)
+
+        conceptual_data = {
+            "version": 1,
+            "domains": {"party": {"name": "Party"}},
+            "concepts": {
+                "customer": {
+                    "name": "Customer",
+                    "domain": "party",
+                    "definition": "A customer",
+                    "status": "draft",
+                    # owner is missing
+                }
+            },
+        }
+
+        with open(conceptual_dir / "conceptual.yml", "w") as f:
+            yaml.dump(conceptual_data, f)
+
+        result = runner.invoke(status, ["--project-dir", str(tmppath)])
+
+        assert result.exit_code == 0
+        assert "customer" in result.output
+        assert "missing: owner" in result.output
+        assert "Concepts Needing Attention" in result.output
 
 
 def test_cli_status_with_custom_status() -> None:
