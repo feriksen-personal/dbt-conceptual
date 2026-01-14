@@ -390,5 +390,129 @@ positions:
     console.print("  3. Run 'dbt-conceptual status' to see coverage")
 
 
+@main.command()
+@click.option(
+    "--project-dir",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    default=None,
+    help="Path to dbt project directory (default: current directory)",
+)
+@click.option(
+    "--create-stubs",
+    is_flag=True,
+    help="Create stub concepts for orphan models",
+)
+@click.option(
+    "--model",
+    help="Sync only a specific model by name",
+)
+def sync(project_dir: Optional[Path], create_stubs: bool, model: Optional[str]) -> None:
+    """Discover dbt models and sync with conceptual model."""
+    # Load configuration
+    config = Config.load(project_dir=project_dir)
+
+    # Check if conceptual.yml exists
+    if not config.conceptual_file.exists():
+        console.print(
+            f"[red]Error: conceptual.yml not found at {config.conceptual_file}[/red]"
+        )
+        console.print("\nRun 'dbt-conceptual init' to create it.")
+        raise click.Abort()
+
+    # Build state
+    builder = StateBuilder(config)
+    state = builder.build()
+
+    # Filter orphan models
+    orphans = state.orphan_models
+    if model:
+        # Filter to specific model
+        if model in orphans:
+            orphans = [model]
+        else:
+            console.print(f"[yellow]Model '{model}' is not an orphan[/yellow]")
+            if model in [m for c in state.concepts.values() for m in c.gold_models]:
+                console.print(
+                    f"Model '{model}' is already mapped to a concept in gold layer"
+                )
+            elif model in [m for c in state.concepts.values() for m in c.silver_models]:
+                console.print(
+                    f"Model '{model}' is already mapped to a concept in silver layer"
+                )
+            else:
+                console.print(f"Model '{model}' not found in project")
+            return
+
+    if not orphans:
+        console.print("[green]No orphan models found![/green]")
+        console.print("All models are mapped to concepts.")
+        return
+
+    # Display orphans
+    console.print(f"\n[bold]Found {len(orphans)} orphan model(s):[/bold]")
+    for orphan in orphans:
+        console.print(f"  - {orphan}")
+
+    if not create_stubs:
+        console.print(
+            "\n[yellow]Tip:[/yellow] Use --create-stubs to automatically create stub concepts"
+        )
+        return
+
+    # Create stubs
+    import yaml
+
+    # Read existing conceptual.yml
+    with open(config.conceptual_file) as f:
+        conceptual_data = yaml.safe_load(f) or {}
+
+    if "concepts" not in conceptual_data:
+        conceptual_data["concepts"] = {}
+
+    # Create stub for each orphan
+    stubs_created = []
+    for orphan in orphans:
+        # Generate concept ID from model name
+        # Strip prefixes like dim_, fact_, stg_
+        concept_id = orphan
+        for prefix in ["dim_", "fact_", "stg_", "fct_", "bridge_"]:
+            if concept_id.startswith(prefix):
+                concept_id = concept_id[len(prefix) :]
+                break
+
+        # Check if concept already exists
+        if concept_id in conceptual_data["concepts"]:
+            console.print(
+                f"[yellow]Skipping {orphan}: concept '{concept_id}' already exists[/yellow]"
+            )
+            continue
+
+        # Create stub
+        conceptual_data["concepts"][concept_id] = {
+            "name": concept_id.replace("_", " ").title(),
+            "status": "stub",
+        }
+        stubs_created.append((orphan, concept_id))
+
+    if not stubs_created:
+        console.print("[yellow]No stubs created (concepts already exist)[/yellow]")
+        return
+
+    # Write back to file
+    with open(config.conceptual_file, "w") as f:
+        yaml.dump(conceptual_data, f, default_flow_style=False, sort_keys=False)
+
+    console.print(f"\n[green]✓ Created {len(stubs_created)} stub concept(s):[/green]")
+    for orphan, concept_id in stubs_created:
+        console.print(f"  - {concept_id} (from {orphan})")
+
+    console.print(
+        f"\n[green bold]Sync complete![/green bold] Updated {config.conceptual_file}"
+    )
+    console.print(
+        "\nNext steps:\n  1. Add meta.concept tags to your dbt models\n  2. Enrich stub concepts with domain, owner, definition"
+    )
+
+
 if __name__ == "__main__":
     main()

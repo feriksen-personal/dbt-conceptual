@@ -6,7 +6,7 @@ from tempfile import TemporaryDirectory
 import yaml
 from click.testing import CliRunner
 
-from dbt_conceptual.cli import init, main, status, validate
+from dbt_conceptual.cli import init, main, status, sync, validate
 
 
 def test_cli_main() -> None:
@@ -636,3 +636,204 @@ def test_cli_status_with_custom_status() -> None:
         assert "customer" in result.output
         # Custom status shows as icon ◐
         assert "◐" in result.output
+
+
+def test_cli_sync_no_orphans() -> None:
+    """Test sync command with no orphan models."""
+    runner = CliRunner()
+
+    with TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+
+        # Create dbt_project.yml
+        with open(tmppath / "dbt_project.yml", "w") as f:
+            yaml.dump({"name": "test"}, f)
+
+        # Create conceptual.yml with concept
+        conceptual_dir = tmppath / "models" / "conceptual"
+        conceptual_dir.mkdir(parents=True)
+
+        conceptual_data = {
+            "version": 1,
+            "concepts": {
+                "customer": {
+                    "name": "Customer",
+                    "domain": "party",
+                    "owner": "data_team",
+                    "definition": "A customer",
+                    "status": "complete",
+                }
+            },
+        }
+
+        with open(conceptual_dir / "conceptual.yml", "w") as f:
+            yaml.dump(conceptual_data, f)
+
+        # Create gold model with concept tag
+        gold_dir = tmppath / "models" / "gold"
+        gold_dir.mkdir(parents=True)
+
+        with open(gold_dir / "schema.yml", "w") as f:
+            yaml.dump(
+                {
+                    "version": 2,
+                    "models": [
+                        {"name": "dim_customer", "meta": {"concept": "customer"}}
+                    ],
+                },
+                f,
+            )
+
+        result = runner.invoke(sync, ["--project-dir", str(tmppath)])
+
+        assert result.exit_code == 0
+        assert "No orphan models found" in result.output
+
+
+def test_cli_sync_with_orphans() -> None:
+    """Test sync command displays orphan models."""
+    runner = CliRunner()
+
+    with TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+
+        # Create dbt_project.yml
+        with open(tmppath / "dbt_project.yml", "w") as f:
+            yaml.dump({"name": "test"}, f)
+
+        # Create minimal conceptual.yml
+        conceptual_dir = tmppath / "models" / "conceptual"
+        conceptual_dir.mkdir(parents=True)
+        with open(conceptual_dir / "conceptual.yml", "w") as f:
+            yaml.dump({"version": 1}, f)
+
+        # Create orphan model
+        gold_dir = tmppath / "models" / "gold"
+        gold_dir.mkdir(parents=True)
+        with open(gold_dir / "schema.yml", "w") as f:
+            yaml.dump({"version": 2, "models": [{"name": "dim_product"}]}, f)
+
+        result = runner.invoke(sync, ["--project-dir", str(tmppath)])
+
+        assert result.exit_code == 0
+        assert "Found 1 orphan model" in result.output
+        assert "dim_product" in result.output
+        assert "Use --create-stubs" in result.output
+
+
+def test_cli_sync_create_stubs() -> None:
+    """Test sync command creates stub concepts."""
+    runner = CliRunner()
+
+    with TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+
+        # Create dbt_project.yml
+        with open(tmppath / "dbt_project.yml", "w") as f:
+            yaml.dump({"name": "test"}, f)
+
+        # Create minimal conceptual.yml
+        conceptual_dir = tmppath / "models" / "conceptual"
+        conceptual_dir.mkdir(parents=True)
+        conceptual_file = conceptual_dir / "conceptual.yml"
+        with open(conceptual_file, "w") as f:
+            yaml.dump({"version": 1}, f)
+
+        # Create orphan models
+        gold_dir = tmppath / "models" / "gold"
+        gold_dir.mkdir(parents=True)
+        with open(gold_dir / "schema.yml", "w") as f:
+            yaml.dump(
+                {
+                    "version": 2,
+                    "models": [{"name": "dim_product"}, {"name": "fact_sales"}],
+                },
+                f,
+            )
+
+        result = runner.invoke(sync, ["--project-dir", str(tmppath), "--create-stubs"])
+
+        assert result.exit_code == 0
+        assert "Created 2 stub concept" in result.output
+        assert "product" in result.output
+        assert "sales" in result.output
+
+        # Verify stubs were created in file
+        with open(conceptual_file) as f:
+            data = yaml.safe_load(f)
+            assert "product" in data["concepts"]
+            assert data["concepts"]["product"]["status"] == "stub"
+            assert "sales" in data["concepts"]
+            assert data["concepts"]["sales"]["status"] == "stub"
+
+
+def test_cli_sync_specific_model() -> None:
+    """Test sync command with --model flag."""
+    runner = CliRunner()
+
+    with TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+
+        # Create dbt_project.yml
+        with open(tmppath / "dbt_project.yml", "w") as f:
+            yaml.dump({"name": "test"}, f)
+
+        # Create minimal conceptual.yml
+        conceptual_dir = tmppath / "models" / "conceptual"
+        conceptual_dir.mkdir(parents=True)
+        conceptual_file = conceptual_dir / "conceptual.yml"
+        with open(conceptual_file, "w") as f:
+            yaml.dump({"version": 1}, f)
+
+        # Create multiple orphan models
+        gold_dir = tmppath / "models" / "gold"
+        gold_dir.mkdir(parents=True)
+        with open(gold_dir / "schema.yml", "w") as f:
+            yaml.dump(
+                {
+                    "version": 2,
+                    "models": [
+                        {"name": "dim_product"},
+                        {"name": "dim_customer"},
+                    ],
+                },
+                f,
+            )
+
+        result = runner.invoke(
+            sync,
+            [
+                "--project-dir",
+                str(tmppath),
+                "--create-stubs",
+                "--model",
+                "dim_product",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Created 1 stub concept" in result.output
+        assert "product" in result.output
+
+        # Verify only one stub was created
+        with open(conceptual_file) as f:
+            data = yaml.safe_load(f)
+            assert "product" in data["concepts"]
+            assert "customer" not in data["concepts"]
+
+
+def test_cli_sync_without_conceptual_file() -> None:
+    """Test sync command fails without conceptual.yml."""
+    runner = CliRunner()
+
+    with TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+
+        # Create dbt_project.yml only
+        with open(tmppath / "dbt_project.yml", "w") as f:
+            yaml.dump({"name": "test"}, f)
+
+        result = runner.invoke(sync, ["--project-dir", str(tmppath)])
+
+        assert result.exit_code == 1
+        assert "conceptual.yml not found" in result.output
