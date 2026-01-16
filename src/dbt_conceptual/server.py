@@ -138,13 +138,22 @@ def create_app(project_dir: Path) -> Flask:
                     concept_dict = {
                         k: v
                         for k, v in concept.items()
-                        if v is not None and k not in ("display_name", "bronze_models")  # Exclude bronze_models - read-only from manifest.json
+                        if v is not None
+                        and k
+                        not in (
+                            "display_name",
+                            "bronze_models",
+                        )  # Exclude bronze_models - read-only from manifest.json
                     }
                     # Deduplicate model lists
                     if "silver_models" in concept_dict:
-                        concept_dict["silver_models"] = list(dict.fromkeys(concept_dict["silver_models"]))
+                        concept_dict["silver_models"] = list(
+                            dict.fromkeys(concept_dict["silver_models"])
+                        )
                     if "gold_models" in concept_dict:
-                        concept_dict["gold_models"] = list(dict.fromkeys(concept_dict["gold_models"]))
+                        concept_dict["gold_models"] = list(
+                            dict.fromkeys(concept_dict["gold_models"])
+                        )
                     yaml_data["concepts"][concept_id] = concept_dict
 
             # Relationships
@@ -164,7 +173,9 @@ def create_app(project_dir: Path) -> Flask:
                             rel_dict[k] = v
                     # Deduplicate realized_by list
                     if "realized_by" in rel_dict:
-                        rel_dict["realized_by"] = list(dict.fromkeys(rel_dict["realized_by"]))
+                        rel_dict["realized_by"] = list(
+                            dict.fromkeys(rel_dict["realized_by"])
+                        )
                     yaml_data["relationships"].append(rel_dict)
 
             # Write to file

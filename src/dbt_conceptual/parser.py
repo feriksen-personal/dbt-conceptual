@@ -243,4 +243,6 @@ class StateBuilder:
 
         except Exception as e:
             # Don't fail if manifest parsing fails
-            print(f"Warning: Failed to parse manifest.json for bronze dependencies: {e}")
+            print(
+                f"Warning: Failed to parse manifest.json for bronze dependencies: {e}"
+            )
