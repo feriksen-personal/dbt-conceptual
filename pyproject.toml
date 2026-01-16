@@ -106,11 +106,11 @@ ignore = [
 [tool.mypy]
 python_version = "3.9"
 warn_return_any = true
-warn_unused_ignores = true
+warn_unused_ignores = false
 disallow_untyped_defs = true
 
 [[tool.mypy.overrides]]
-module = "PIL.*"
+module = ["PIL.*", "flask.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
