@@ -8,7 +8,7 @@ from rich.console import Console
 
 from dbt_conceptual.config import Config
 from dbt_conceptual.parser import StateBuilder
-from dbt_conceptual.state import ConceptState
+from dbt_conceptual.state import ConceptState, ProjectState
 from dbt_conceptual.validator import Severity, Validator
 
 console = Console()
@@ -211,10 +211,18 @@ def _print_concept_status(concept_id: str, concept: ConceptState) -> None:
     multiple=True,
     help="Override gold layer paths",
 )
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["human", "github"], case_sensitive=False),
+    default="human",
+    help="Output format: human (default) or github (GitHub Actions annotations)",
+)
 def validate(
     project_dir: Optional[Path],
     silver_paths: tuple[str, ...],
     gold_paths: tuple[str, ...],
+    output_format: str,
 ) -> None:
     """Validate conceptual model correspondence (for CI)."""
     # Load configuration
@@ -226,10 +234,13 @@ def validate(
 
     # Check if conceptual.yml exists
     if not config.conceptual_file.exists():
-        console.print(
-            f"[red]Error: conceptual.yml not found at {config.conceptual_file}[/red]"
-        )
-        console.print("\nRun 'dbt-conceptual init' to create it.")
+        if output_format == "github":
+            print(f"::error file={config.conceptual_file}::conceptual.yml not found")
+        else:
+            console.print(
+                f"[red]Error: conceptual.yml not found at {config.conceptual_file}[/red]"
+            )
+            console.print("\nRun 'dbt-conceptual init' to create it.")
         raise click.Abort()
 
     # Build state
@@ -240,6 +251,56 @@ def validate(
     validator = Validator(config, state)
     issues = validator.validate()
 
+    if output_format == "github":
+        _output_github_format(config, validator, issues)
+    else:
+        _output_human_format(config, state, validator, issues)
+
+    # Exit with appropriate code
+    if validator.has_errors():
+        if output_format != "github":
+            console.print("\n[red]FAILED[/red]")
+        raise SystemExit(1)
+    else:
+        if output_format != "github":
+            console.print("\n[green]PASSED[/green]")
+        raise SystemExit(0)
+
+
+def _output_github_format(
+    config: Config,
+    validator: Validator,
+    issues: list,
+) -> None:
+    """Output validation results in GitHub Actions annotation format."""
+    conceptual_file = str(config.conceptual_file)
+
+    for issue in issues:
+        if issue.severity == Severity.ERROR:
+            level = "error"
+        elif issue.severity == Severity.WARNING:
+            level = "warning"
+        else:
+            level = "notice"
+
+        # GitHub Actions annotation format: ::level file=path::message
+        print(f"::{level} file={conceptual_file}::[{issue.code}] {issue.message}")
+
+    # Print summary
+    summary = validator.get_summary()
+    print(
+        f"Validation complete: {summary['errors']} errors, "
+        f"{summary['warnings']} warnings, {summary['info']} info"
+    )
+
+
+def _output_human_format(
+    config: Config,
+    state: ProjectState,
+    validator: Validator,
+    issues: list,
+) -> None:
+    """Output validation results in human-readable format."""
     # Display concept coverage
     console.print("\n[bold]Concept Coverage[/bold]")
     console.print("=" * 80)
@@ -325,14 +386,6 @@ def validate(
         f"{summary['warnings']} warnings, "
         f"{summary['info']} info"
     )
-
-    # Exit with appropriate code
-    if validator.has_errors():
-        console.print("\n[red]FAILED[/red]")
-        raise SystemExit(1)
-    else:
-        console.print("\n[green]PASSED[/green]")
-        raise SystemExit(0)
 
 
 @main.command()

@@ -65,8 +65,8 @@ def export_png(state: ProjectState, output: BinaryIO) -> None:
             )
         except Exception:
             # Fallback to default font
-            font_title = ImageFont.load_default()
-            font_text = ImageFont.load_default()
+            font_title = ImageFont.load_default()  # type: ignore[assignment]
+            font_text = ImageFont.load_default()  # type: ignore[assignment]
 
     # Group concepts by domain
     domains_with_concepts: dict[str, list[str]] = {}

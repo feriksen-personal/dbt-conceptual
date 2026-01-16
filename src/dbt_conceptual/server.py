@@ -3,7 +3,7 @@
 from pathlib import Path
 from typing import Any, Union
 
-from flask import Flask, Response, jsonify, request, send_from_directory  # type: ignore
+from flask import Flask, Response, jsonify, request, send_from_directory
 
 from dbt_conceptual.config import Config
 from dbt_conceptual.exporter.bus_matrix import export_bus_matrix
