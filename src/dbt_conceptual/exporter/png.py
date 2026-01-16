@@ -1,7 +1,6 @@
 """PNG diagram exporter for dbt-conceptual."""
 
-from io import BytesIO
-from typing import BinaryIO, Dict, List, Tuple
+from typing import BinaryIO
 
 from dbt_conceptual.state import ProjectState
 
@@ -20,10 +19,10 @@ def export_png(state: ProjectState, output: BinaryIO) -> None:
     """
     try:
         from PIL import Image, ImageDraw, ImageFont
-    except ImportError:
+    except ImportError as err:
         raise ImportError(
             "PNG export requires Pillow. Install with: pip install dbt-conceptual[png]"
-        )
+        ) from err
 
     # Configuration
     WIDTH = 1200
@@ -70,7 +69,7 @@ def export_png(state: ProjectState, output: BinaryIO) -> None:
             font_text = ImageFont.load_default()
 
     # Group concepts by domain
-    domains_with_concepts: Dict[str, List[str]] = {}
+    domains_with_concepts: dict[str, list[str]] = {}
     for concept_id, concept in state.concepts.items():
         domain = concept.domain or "default"
         if domain not in domains_with_concepts:
@@ -80,7 +79,7 @@ def export_png(state: ProjectState, output: BinaryIO) -> None:
     # Calculate layout
     num_domains = len(domains_with_concepts)
     domain_width = (WIDTH - 2 * PADDING) // max(num_domains, 1)
-    concept_positions: Dict[str, Tuple[int, int]] = {}
+    concept_positions: dict[str, tuple[int, int]] = {}
 
     # Draw domains and concepts
     for idx, (domain_id, concept_ids) in enumerate(domains_with_concepts.items()):
@@ -115,7 +114,6 @@ def export_png(state: ProjectState, output: BinaryIO) -> None:
         )
 
         # Draw concepts in this domain
-        num_concepts = len(concept_ids)
         for cidx, concept_id in enumerate(concept_ids):
             # Position concept
             concept_x = domain_x + 20
