@@ -523,7 +523,7 @@ def sync(project_dir: Optional[Path], create_stubs: bool, model: Optional[str]) 
             continue
 
         # Create stub with data from model if available
-        stub_data: dict[str, str | None] = {
+        stub_data: dict[str, object] = {
             "name": concept_id.replace("_", " ").title(),
             "status": "stub",
         }
@@ -550,8 +550,8 @@ def sync(project_dir: Optional[Path], create_stubs: bool, model: Optional[str]) 
         yaml.dump(conceptual_data, f, default_flow_style=False, sort_keys=False)
 
     console.print(f"\n[green]✓ Created {len(stubs_created)} stub concept(s):[/green]")
-    for orphan, concept_id in stubs_created:
-        console.print(f"  - {concept_id} (from {orphan})")
+    for model_name, concept_id in stubs_created:
+        console.print(f"  - {concept_id} (from {model_name})")
 
     console.print(
         f"\n[green bold]Sync complete![/green bold] Updated {config.conceptual_file}"
