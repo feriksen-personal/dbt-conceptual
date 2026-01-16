@@ -78,6 +78,7 @@ class DbtProjectScanner:
                 continue
 
             meta = model.get("meta", {})
+            description = model.get("description")
 
             # Determine layer
             layer = self.config.get_layer(str(rel_path))
@@ -88,6 +89,7 @@ class DbtProjectScanner:
             models.append(
                 {
                     "name": model_name,
+                    "description": description,
                     "meta": meta,
                     "path": str(rel_path),
                     "layer": layer,
@@ -119,3 +121,38 @@ class DbtProjectScanner:
                 print(f"Warning: Error processing {schema_file}: {e}")
 
         return all_models
+
+    def find_model_files(self) -> dict[str, list[str]]:
+        """Find all .sql model files in silver and gold paths.
+
+        Returns:
+            Dictionary with 'silver' and 'gold' keys containing lists of model names
+        """
+        project_dir = self.config.project_dir
+        models: dict[str, list[str]] = {"silver": [], "gold": []}
+
+        # Scan silver paths
+        for search_path in self.config.silver_paths:
+            full_path = project_dir / search_path
+            if full_path.exists():
+                for sql_file in full_path.rglob("*.sql"):
+                    # Get model name without .sql extension
+                    model_name = sql_file.stem
+                    if model_name not in models["silver"]:
+                        models["silver"].append(model_name)
+
+        # Scan gold paths
+        for search_path in self.config.gold_paths:
+            full_path = project_dir / search_path
+            if full_path.exists():
+                for sql_file in full_path.rglob("*.sql"):
+                    # Get model name without .sql extension
+                    model_name = sql_file.stem
+                    if model_name not in models["gold"]:
+                        models["gold"].append(model_name)
+
+        # Sort for consistency
+        models["silver"].sort()
+        models["gold"].sort()
+
+        return models

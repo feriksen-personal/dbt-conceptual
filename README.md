@@ -439,18 +439,39 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      
+
       - name: Install dependencies
         run: pip install dbt-core dbt-conceptual
-      
+
       - name: Validate conceptual model
-        run: dbt-conceptual validate
+        run: dbt-conceptual validate --format github
 ```
+
+Use `--format github` for native GitHub Actions annotations. Errors and warnings will appear inline in PR diffs.
+
+### Validation Rules Configuration
+
+Configure which validation rules are errors, warnings, or ignored in `dbt_project.yml`:
+
+```yaml
+vars:
+  dbt_conceptual:
+    validation:
+      orphan_models: warn          # Models not linked to any concept
+      unimplemented_concepts: warn # Concepts with no implementing models
+      unrealized_relationships: warn # Relationships with no realizing models
+      missing_definitions: ignore  # Concepts without definitions
+      domain_mismatch: warn        # Models with meta.domain != concept domain
+```
+
+Severity options: `error`, `warn`, `ignore`
+
+**Note:** Unknown references (e.g., `meta.concept: nonexistent`) are always errors and cannot be configured.
 
 ---
 

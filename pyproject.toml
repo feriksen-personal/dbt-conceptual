@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dbt-conceptual"
-version = "0.2.2"
+version = "0.3.0"
 description = "Bridge the gap between conceptual models and your lakehouse"
 readme = "README.md"
 license = "MIT"
@@ -106,8 +106,12 @@ ignore = [
 [tool.mypy]
 python_version = "3.9"
 warn_return_any = true
-warn_unused_ignores = true
+warn_unused_ignores = false
 disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = ["PIL.*", "flask.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

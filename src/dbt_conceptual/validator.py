@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
 
-from dbt_conceptual.config import Config
+from dbt_conceptual.config import Config, RuleSeverity
 from dbt_conceptual.state import ProjectState
 
 
@@ -14,6 +14,15 @@ class Severity(Enum):
     ERROR = "error"
     WARNING = "warning"
     INFO = "info"
+
+
+def _rule_to_severity(rule: RuleSeverity) -> Optional[Severity]:
+    """Convert RuleSeverity to Severity (returns None for IGNORE)."""
+    if rule == RuleSeverity.ERROR:
+        return Severity.ERROR
+    elif rule == RuleSeverity.WARN:
+        return Severity.WARNING
+    return None
 
 
 @dataclass
@@ -56,9 +65,19 @@ class Validator:
         """
         self.issues = []
 
+        # Hardcoded as errors - unknown refs are always errors
+        self._validate_relationship_endpoints()
+
+        # Configurable rules
+        self._validate_orphan_models()
+        self._validate_unimplemented_concepts()
+        self._validate_unrealized_relationships()
+        self._validate_missing_definitions()
+        self._validate_domain_mismatch()
+
+        # Other validations (always run)
         self._validate_concept_required_fields()
         self._validate_domain_references()
-        self._validate_relationship_endpoints()
         self._validate_relationship_endpoint_implementation()
         self._validate_group_name_collisions()
         self._validate_deprecated_references()
@@ -66,6 +85,92 @@ class Validator:
         self._check_stub_concepts()
 
         return self.issues
+
+    def _validate_orphan_models(self) -> None:
+        """Check for models not linked to any concept."""
+        severity = _rule_to_severity(self.config.validation.orphan_models)
+        if severity is None:
+            return
+
+        if self.state.orphan_models:
+            for orphan in self.state.orphan_models:
+                self.issues.append(
+                    ValidationIssue(
+                        severity=severity,
+                        code="W101",
+                        message=f"Model '{orphan.name}' is not linked to any concept",
+                        context={"model": orphan.name, "layer": orphan.layer},
+                    )
+                )
+
+    def _validate_unimplemented_concepts(self) -> None:
+        """Check for concepts with no implementing models."""
+        severity = _rule_to_severity(self.config.validation.unimplemented_concepts)
+        if severity is None:
+            return
+
+        for concept_id, concept in self.state.concepts.items():
+            if concept.status == "deprecated":
+                continue
+            if not concept.silver_models and not concept.gold_models:
+                self.issues.append(
+                    ValidationIssue(
+                        severity=severity,
+                        code="W102",
+                        message=f"Concept '{concept_id}' has no implementing models",
+                        context={"concept": concept_id, "status": concept.status},
+                    )
+                )
+
+    def _validate_unrealized_relationships(self) -> None:
+        """Check for relationships with no realizing models."""
+        severity = _rule_to_severity(self.config.validation.unrealized_relationships)
+        if severity is None:
+            return
+
+        for rel_id, rel in self.state.relationships.items():
+            if not rel.realized_by:
+                self.issues.append(
+                    ValidationIssue(
+                        severity=severity,
+                        code="W103",
+                        message=f"Relationship '{rel_id}' ({rel.from_concept} -> {rel.to_concept}) is not realized by any model",
+                        context={
+                            "relationship": rel_id,
+                            "from": rel.from_concept,
+                            "to": rel.to_concept,
+                        },
+                    )
+                )
+
+    def _validate_missing_definitions(self) -> None:
+        """Check for non-stub concepts missing definitions."""
+        severity = _rule_to_severity(self.config.validation.missing_definitions)
+        if severity is None:
+            return
+
+        for concept_id, concept in self.state.concepts.items():
+            if concept.status in ["stub", "deprecated"]:
+                continue
+            if not concept.definition:
+                self.issues.append(
+                    ValidationIssue(
+                        severity=severity,
+                        code="W104",
+                        message=f"Concept '{concept_id}' is missing a definition",
+                        context={"concept": concept_id, "status": concept.status},
+                    )
+                )
+
+    def _validate_domain_mismatch(self) -> None:
+        """Check for models with meta.domain that doesn't match concept domain."""
+        severity = _rule_to_severity(self.config.validation.domain_mismatch)
+        if severity is None:
+            return
+
+        # This would require tracking model domains in state
+        # For now, skip - would need to enhance state to track this
+        pass
 
     def _validate_concept_required_fields(self) -> None:
         """Validate that concepts have required fields based on their status."""

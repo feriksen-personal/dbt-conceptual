@@ -3,12 +3,13 @@
 from pathlib import Path
 from typing import Any, Union
 
-from flask import Flask, Response, jsonify, request, send_from_directory  # type: ignore
+from flask import Flask, Response, jsonify, request, send_from_directory
 
 from dbt_conceptual.config import Config
 from dbt_conceptual.exporter.bus_matrix import export_bus_matrix
 from dbt_conceptual.exporter.coverage import export_coverage
 from dbt_conceptual.parser import StateBuilder
+from dbt_conceptual.scanner import DbtProjectScanner
 
 
 def create_app(project_dir: Path) -> Flask:
@@ -80,6 +81,8 @@ def create_app(project_dir: Path) -> Flask:
                         "domain": concept.domain,
                         "owner": concept.owner,
                         "status": concept.status,
+                        "color": concept.color,
+                        "bronze_models": concept.bronze_models or [],
                         "silver_models": concept.silver_models or [],
                         "gold_models": concept.gold_models or [],
                     }
@@ -130,26 +133,50 @@ def create_app(project_dir: Path) -> Flask:
 
             # Concepts
             if data.get("concepts"):
-                yaml_data["concepts"] = {
-                    concept_id: {
+                yaml_data["concepts"] = {}
+                for concept_id, concept in data["concepts"].items():
+                    concept_dict = {
                         k: v
                         for k, v in concept.items()
                         if v is not None
-                        and k not in ["display_name", "silver_models", "gold_models"]
+                        and k
+                        not in (
+                            "display_name",
+                            "bronze_models",
+                        )  # Exclude bronze_models - read-only from manifest.json
                     }
-                    for concept_id, concept in data["concepts"].items()
-                }
+                    # Deduplicate model lists
+                    if "silver_models" in concept_dict:
+                        concept_dict["silver_models"] = list(
+                            dict.fromkeys(concept_dict["silver_models"])
+                        )
+                    if "gold_models" in concept_dict:
+                        concept_dict["gold_models"] = list(
+                            dict.fromkeys(concept_dict["gold_models"])
+                        )
+                    yaml_data["concepts"][concept_id] = concept_dict
 
             # Relationships
             if data.get("relationships"):
-                yaml_data["relationships"] = [
-                    {
-                        k: v
-                        for k, v in rel.items()
-                        if v is not None and k != "realized_by"
-                    }
-                    for rel in data["relationships"].values()
-                ]
+                yaml_data["relationships"] = []
+                for rel in data["relationships"].values():
+                    rel_dict = {}
+                    for k, v in rel.items():
+                        if v is None:
+                            continue
+                        # Map API field names to YAML field names
+                        if k == "from_concept":
+                            rel_dict["from"] = v
+                        elif k == "to_concept":
+                            rel_dict["to"] = v
+                        else:
+                            rel_dict[k] = v
+                    # Deduplicate realized_by list
+                    if "realized_by" in rel_dict:
+                        rel_dict["realized_by"] = list(
+                            dict.fromkeys(rel_dict["realized_by"])
+                        )
+                    yaml_data["relationships"].append(rel_dict)
 
             # Write to file
             import yaml
@@ -204,7 +231,7 @@ def create_app(project_dir: Path) -> Flask:
 
             import yaml
 
-            with open(layout_file, "r") as f:
+            with open(layout_file) as f:
                 layout_data = yaml.safe_load(f) or {}
 
             return jsonify(layout_data.get("positions", {}))
@@ -231,6 +258,16 @@ def create_app(project_dir: Path) -> Flask:
                 yaml.dump(layout_data, f, sort_keys=False, default_flow_style=False)
 
             return jsonify({"success": True, "message": "Layout saved"})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/models", methods=["GET"])
+    def get_models() -> Any:
+        """Get available dbt models from silver and gold layers."""
+        try:
+            scanner = DbtProjectScanner(config)
+            models = scanner.find_model_files()
+            return jsonify(models)
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 

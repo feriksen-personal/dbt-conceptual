@@ -26,6 +26,10 @@ export default function GraphEditor({ state, setState }: Props) {
   const [selectedNode, setSelectedNode] = useState<string | null>(null)
   const [selectedLink, setSelectedLink] = useState<string | null>(null)
   const [layout, setLayout] = useState<Record<string, { x: number; y: number }>>({})
+  const [availableModels, setAvailableModels] = useState<{ silver: string[]; gold: string[] }>({ silver: [], gold: [] })
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; type: 'canvas' | 'node'; nodeId?: string } | null>(null)
+  const [dragConnection, setDragConnection] = useState<{ fromNodeId: string; x: number; y: number } | null>(null)
+  const [relationshipDialog, setRelationshipDialog] = useState<{ fromNodeId: string; toNodeId: string } | null>(null)
 
   // Load layout on mount
   useEffect(() => {
@@ -39,6 +43,59 @@ export default function GraphEditor({ state, setState }: Props) {
       .catch(err => console.error('Failed to load layout:', err))
   }, [])
 
+  // Load available models on mount
+  useEffect(() => {
+    fetch('/api/models')
+      .then(res => res.json())
+      .then(data => {
+        if (data && typeof data === 'object' && !data.error) {
+          setAvailableModels(data)
+        }
+      })
+      .catch(err => console.error('Failed to load models:', err))
+  }, [])
+
+  // Close context menu on click
+  useEffect(() => {
+    const handleClick = () => setContextMenu(null)
+    document.addEventListener('click', handleClick)
+    return () => document.removeEventListener('click', handleClick)
+  }, [])
+
+  // Handle drag connection mouse move and end
+  useEffect(() => {
+    if (!dragConnection || !svgRef.current) return
+
+    const handleMouseMove = (event: MouseEvent) => {
+      const [x, y] = d3.pointer(event, svgRef.current)
+      setDragConnection(prev => prev ? { ...prev, x, y } : null)
+    }
+
+    const handleMouseUp = (event: MouseEvent) => {
+      // Cancel drag if not released on a node
+      if (event.button === 0) {
+        setDragConnection(null)
+      }
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Cancel drag on Escape
+      if (event.key === 'Escape') {
+        setDragConnection(null)
+      }
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [dragConnection])
+
   // Save layout when positions change (debounced)
   const saveLayout = (positions: Record<string, { x: number; y: number }>) => {
     fetch('/api/layout', {
@@ -46,6 +103,65 @@ export default function GraphEditor({ state, setState }: Props) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ positions }),
     }).catch(err => console.error('Failed to save layout:', err))
+  }
+
+  // Create a new concept
+  const createNewConcept = () => {
+    const conceptName = prompt('Enter concept name:')
+    if (!conceptName) return
+
+    const conceptId = conceptName.toLowerCase().replace(/\s+/g, '_')
+    if (state.concepts[conceptId]) {
+      alert('A concept with this name already exists')
+      return
+    }
+
+    setState({
+      ...state,
+      concepts: {
+        ...state.concepts,
+        [conceptId]: {
+          name: conceptName,
+          status: 'draft',
+          bronze_models: [],
+          silver_models: [],
+          gold_models: [],
+        },
+      },
+    })
+    setSelectedNode(conceptId)
+  }
+
+  // Create a new relationship from a concept
+  const createNewRelationship = (fromConceptId: string) => {
+    const relationshipName = prompt('Enter relationship name:')
+    if (!relationshipName) return
+
+    const toConceptId = prompt('Enter target concept ID (choose from: ' + Object.keys(state.concepts).join(', ') + '):')
+    if (!toConceptId || !state.concepts[toConceptId]) {
+      alert('Invalid target concept')
+      return
+    }
+
+    const cardinality = prompt('Enter cardinality (e.g., 1:1, 1:N, N:M):')
+    if (!cardinality) return
+
+    const relationshipId = `${fromConceptId}_${relationshipName}_${toConceptId}`.toLowerCase().replace(/\s+/g, '_')
+
+    setState({
+      ...state,
+      relationships: {
+        ...state.relationships,
+        [relationshipId]: {
+          name: relationshipName,
+          from_concept: fromConceptId,
+          to_concept: toConceptId,
+          cardinality,
+          realized_by: [],
+        },
+      },
+    })
+    setSelectedLink(relationshipId)
   }
 
   useEffect(() => {
@@ -65,9 +181,9 @@ export default function GraphEditor({ state, setState }: Props) {
         label: concept.name,
         concept,
         domain: concept.domain,
-        color: concept.domain && state.domains[concept.domain]?.color
-          ? state.domains[concept.domain].color
-          : '#E3F2FD',
+        color: concept.color // Use concept color if specified
+          || (concept.domain && state.domains[concept.domain]?.color) // Otherwise use domain color
+          || '#E3F2FD', // Default fallback
       }
 
       // Apply saved position if available
@@ -110,7 +226,115 @@ export default function GraphEditor({ state, setState }: Props) {
 
     svg.call(zoom)
 
-    // Draw links with curved paths
+    // Add context menu for canvas (right-click)
+    svg.on('contextmenu', (event) => {
+      if (event.target === svgRef.current || event.target.tagName === 'svg') {
+        event.preventDefault()
+        setContextMenu({
+          x: event.clientX,
+          y: event.clientY,
+          type: 'canvas',
+        })
+      }
+    })
+
+    // Add crow's foot notation markers for different cardinalities
+    const defs = svg.append('defs')
+
+    // One (mandatory) - single line perpendicular to relationship line
+    defs.append('marker')
+      .attr('id', 'one')
+      .attr('viewBox', '-5 -5 10 10')
+      .attr('refX', 5)
+      .attr('refY', 0)
+      .attr('orient', 'auto')
+      .attr('markerWidth', 10)
+      .attr('markerHeight', 10)
+      .append('svg:line')
+      .attr('x1', 0)
+      .attr('y1', -4)
+      .attr('x2', 0)
+      .attr('y2', 4)
+      .attr('stroke', '#94a3b8')
+      .attr('stroke-width', 2)
+
+    // Many - crow's foot (three lines spreading out)
+    const manyMarker = defs.append('marker')
+      .attr('id', 'many')
+      .attr('viewBox', '-5 -5 10 10')
+      .attr('refX', 5)
+      .attr('refY', 0)
+      .attr('orient', 'auto')
+      .attr('markerWidth', 10)
+      .attr('markerHeight', 10)
+    manyMarker.append('svg:line')
+      .attr('x1', 0).attr('y1', -4).attr('x2', 5).attr('y2', 0)
+      .attr('stroke', '#94a3b8').attr('stroke-width', 2)
+    manyMarker.append('svg:line')
+      .attr('x1', 0).attr('y1', 0).attr('x2', 5).attr('y2', 0)
+      .attr('stroke', '#94a3b8').attr('stroke-width', 2)
+    manyMarker.append('svg:line')
+      .attr('x1', 0).attr('y1', 4).attr('x2', 5).attr('y2', 0)
+      .attr('stroke', '#94a3b8').attr('stroke-width', 2)
+
+    // Optional (zero) - small circle
+    defs.append('marker')
+      .attr('id', 'zero')
+      .attr('viewBox', '-5 -5 10 10')
+      .attr('refX', 5)
+      .attr('refY', 0)
+      .attr('orient', 'auto')
+      .attr('markerWidth', 10)
+      .attr('markerHeight', 10)
+      .append('svg:circle')
+      .attr('cx', 0)
+      .attr('cy', 0)
+      .attr('r', 2.5)
+      .attr('fill', 'none')
+      .attr('stroke', '#94a3b8')
+      .attr('stroke-width', 2)
+
+    // Unknown cardinality - question mark (for design-time/stubs)
+    const unknownMarker = defs.append('marker')
+      .attr('id', 'unknown')
+      .attr('viewBox', '-5 -5 10 10')
+      .attr('refX', 5)
+      .attr('refY', 0)
+      .attr('orient', 'auto')
+      .attr('markerWidth', 10)
+      .attr('markerHeight', 10)
+    unknownMarker.append('svg:text')
+      .attr('x', -1)
+      .attr('y', 2)
+      .attr('font-size', '8px')
+      .attr('font-weight', 'bold')
+      .attr('fill', '#94a3b8')
+      .text('?')
+
+    // Helper to parse cardinality and return marker IDs
+    const getCardinalityMarkers = (cardinality: string | undefined): { start: string; end: string } => {
+      if (!cardinality) return { start: 'unknown', end: 'unknown' }
+
+      // Parse cardinality like "1:1", "1:N", "0:N", "N:M", "?:?", etc.
+      const parts = cardinality.split(':').map(p => p.trim().toUpperCase())
+      if (parts.length !== 2) return { start: 'unknown', end: 'unknown' }
+
+      const getMarker = (part: string): string => {
+        if (part === '?' || part === 'UNKNOWN') return 'unknown'
+        if (part === '1') return 'one'
+        if (part === 'N' || part === 'M' || part === '*') return 'many'
+        if (part === '0' || part === '0..1') return 'zero'
+        if (part === '1..N' || part === '0..N') return 'many'
+        return 'unknown' // default to unknown for unrecognized
+      }
+
+      return {
+        start: getMarker(parts[0]),
+        end: getMarker(parts[1])
+      }
+    }
+
+    // Draw links with crow's foot notation
     const link = g.append('g')
       .selectAll('path')
       .data(links)
@@ -119,7 +343,14 @@ export default function GraphEditor({ state, setState }: Props) {
       .attr('fill', 'none')
       .attr('stroke', '#94a3b8')
       .attr('stroke-width', 2.5)
-      .attr('marker-end', 'url(#arrowhead)')
+      .attr('marker-start', d => {
+        const markers = getCardinalityMarkers(d.relationship.cardinality)
+        return markers.start ? `url(#${markers.start})` : ''
+      })
+      .attr('marker-end', d => {
+        const markers = getCardinalityMarkers(d.relationship.cardinality)
+        return markers.end ? `url(#${markers.end})` : ''
+      })
       .attr('opacity', 0.7)
       .style('cursor', 'pointer')
       .on('mouseenter', function() {
@@ -211,15 +442,49 @@ export default function GraphEditor({ state, setState }: Props) {
       .attr('stroke', '#334155')
       .attr('stroke-width', 2)
       .style('cursor', 'pointer')
-      .on('mouseenter', function() {
+      .on('mouseenter', function(event) {
+        if (event.shiftKey) {
+          d3.select(this).style('cursor', 'crosshair')
+        }
         d3.select(this).attr('stroke-width', 3).attr('stroke', '#1e293b')
       })
       .on('mouseleave', function() {
+        d3.select(this).style('cursor', 'pointer')
         d3.select(this).attr('stroke-width', 2).attr('stroke', '#334155')
       })
-      .on('click', (_event, d) => {
-        setSelectedNode(d.id)
-        setSelectedLink(null)
+      .on('mousedown', (event, d) => {
+        if (event.shiftKey) {
+          // Start dragging a connection
+          event.preventDefault()
+          event.stopPropagation()
+          const [x, y] = d3.pointer(event, svgRef.current)
+          setDragConnection({ fromNodeId: d.id, x, y })
+        }
+      })
+      .on('mouseup', (event, d) => {
+        if (dragConnection && dragConnection.fromNodeId !== d.id) {
+          // Complete the connection
+          event.preventDefault()
+          event.stopPropagation()
+          setRelationshipDialog({ fromNodeId: dragConnection.fromNodeId, toNodeId: d.id })
+          setDragConnection(null)
+        }
+      })
+      .on('click', (event, d) => {
+        if (!event.shiftKey && !dragConnection) {
+          setSelectedNode(d.id)
+          setSelectedLink(null)
+        }
+      })
+      .on('contextmenu', (event, d) => {
+        event.preventDefault()
+        event.stopPropagation()
+        setContextMenu({
+          x: event.clientX,
+          y: event.clientY,
+          type: 'node',
+          nodeId: d.id,
+        })
       })
 
     // Add text to nodes with wrapping
@@ -260,48 +525,139 @@ export default function GraphEditor({ state, setState }: Props) {
         }
       })
 
-    // Add status badge
-    node.append('text')
-      .attr('text-anchor', 'middle')
-      .attr('dy', '1.8em')
-      .attr('font-size', '9px')
-      .attr('font-weight', '500')
+    // Add status indicator icon in top-right corner with Lucide icons
+    const statusGroup = node.append('g')
+      .attr('transform', 'translate(55, -20)')
       .attr('pointer-events', 'none')
-      .attr('fill', '#64748b')
-      .style('text-transform', 'uppercase')
-      .style('letter-spacing', '0.5px')
-      .text(d => d.concept.status || 'draft')
 
-    // Add model count badges
-    node.append('text')
-      .attr('text-anchor', 'middle')
-      .attr('dy', '2.6em')
-      .attr('font-size', '10px')
-      .attr('font-weight', '400')
-      .attr('pointer-events', 'none')
-      .attr('fill', '#64748b')
-      .text(d => {
-        const silverCount = d.concept.silver_models?.length || 0
-        const goldCount = d.concept.gold_models?.length || 0
-        if (silverCount === 0 && goldCount === 0) return ''
-        const parts = []
-        if (silverCount > 0) parts.push(`📊 ${silverCount}`)
-        if (goldCount > 0) parts.push(`💎 ${goldCount}`)
-        return parts.join('  ')
+    // Complete: green circle-check
+    statusGroup.filter(d => (d.concept.status || 'draft') === 'complete')
+      .each(function() {
+        const g = d3.select(this)
+        g.append('circle')
+          .attr('cx', 0)
+          .attr('cy', 0)
+          .attr('r', 5)
+          .attr('fill', 'none')
+          .attr('stroke', '#22c55e')
+          .attr('stroke-width', 1.5)
+        g.append('path')
+          .attr('d', 'm-2 0 1 1 2-2')
+          .attr('fill', 'none')
+          .attr('stroke', '#22c55e')
+          .attr('stroke-width', 1.5)
+          .attr('stroke-linecap', 'round')
+          .attr('stroke-linejoin', 'round')
       })
 
-    // Add arrow marker with better styling
-    svg.append('defs').append('marker')
-      .attr('id', 'arrowhead')
-      .attr('viewBox', '-0 -5 10 10')
-      .attr('refX', 78) // Adjusted for box width
-      .attr('refY', 0)
-      .attr('orient', 'auto')
-      .attr('markerWidth', 10)
-      .attr('markerHeight', 10)
-      .append('svg:path')
-      .attr('d', 'M 0,-4 L 8,0 L 0,4 Z')
-      .attr('fill', '#94a3b8')
+    // Draft: blue pencil
+    statusGroup.filter(d => (d.concept.status || 'draft') === 'draft')
+      .each(function() {
+        const g = d3.select(this)
+        g.append('path')
+          .attr('d', 'M4.4-3.4a0.5 0.5 0 0 0-2-2L-4.1 1.1a1 1 0 0 0-0.25 0.42l-0.66 2.18a0.25 0.25 0 0 0 0.31 0.31l2.18-0.66a1 1 0 0 0 0.42-0.25z')
+          .attr('fill', 'none')
+          .attr('stroke', '#3b82f6')
+          .attr('stroke-width', 1.2)
+          .attr('stroke-linecap', 'round')
+          .attr('stroke-linejoin', 'round')
+        g.append('path')
+          .attr('d', 'm1.5-2.5 2 2')
+          .attr('fill', 'none')
+          .attr('stroke', '#3b82f6')
+          .attr('stroke-width', 1.2)
+          .attr('stroke-linecap', 'round')
+          .attr('stroke-linejoin', 'round')
+      })
+
+    // Stub: gray circle
+    statusGroup.filter(d => (d.concept.status || 'draft') === 'stub')
+      .append('circle')
+      .attr('cx', 0)
+      .attr('cy', 0)
+      .attr('r', 5)
+      .attr('fill', 'none')
+      .attr('stroke', '#94a3b8')
+      .attr('stroke-width', 1.5)
+
+    // Deprecated: red circle-x
+    statusGroup.filter(d => (d.concept.status || 'draft') === 'deprecated')
+      .each(function() {
+        const g = d3.select(this)
+        g.append('circle')
+          .attr('cx', 0)
+          .attr('cy', 0)
+          .attr('r', 5)
+          .attr('fill', 'none')
+          .attr('stroke', '#ef4444')
+          .attr('stroke-width', 1.5)
+        g.append('path')
+          .attr('d', 'm2-2-4 4')
+          .attr('fill', 'none')
+          .attr('stroke', '#ef4444')
+          .attr('stroke-width', 1.5)
+          .attr('stroke-linecap', 'round')
+        g.append('path')
+          .attr('d', 'm-2-2 4 4')
+          .attr('fill', 'none')
+          .attr('stroke', '#ef4444')
+          .attr('stroke-width', 1.5)
+          .attr('stroke-linecap', 'round')
+      })
+
+    // Add model count badges with Databricks brick icons inside the box
+    const badgeGroup = node.append('g')
+      .attr('class', 'medallion-badges')
+      .attr('transform', 'translate(0, 18)')
+
+    badgeGroup.each(function(d) {
+      const bronzeCount = d.concept.bronze_models?.length || 0
+      const silverCount = d.concept.silver_models?.length || 0
+      const goldCount = d.concept.gold_models?.length || 0
+
+      // Always show all three medallion badges
+      const badges = [
+        { color: '#CD7F32', count: bronzeCount, label: 'Bronze' },
+        { color: '#C0C0C0', count: silverCount, label: 'Silver' },
+        { color: '#FFD700', count: goldCount, label: 'Gold' }
+      ]
+
+      const group = d3.select(this)
+      const totalWidth = badges.length * 30 - 5
+      const startX = -totalWidth / 2
+
+      badges.forEach((badge, i) => {
+        const badgeX = startX + i * 30
+
+        const badgeGroup = group.append('g')
+          .attr('transform', `translate(${badgeX}, 0)`)
+
+        // Databricks logo (layered brick pattern)
+        // Scale and center the icon (original is in 24x24 viewBox)
+        const scale = 0.5
+        const offsetX = -6
+        const offsetY = -5
+
+        badgeGroup.append('path')
+          .attr('d', 'M3 17l9 5l9 -5v-3l-9 5l-9 -5v-3l9 5l9 -5v-3l-9 5l-9 -5l9 -5l5.418 3.01')
+          .attr('transform', `translate(${offsetX}, ${offsetY}) scale(${scale})`)
+          .attr('fill', 'none')
+          .attr('stroke', badge.color)
+          .attr('stroke-width', 2)
+          .attr('stroke-linecap', 'round')
+          .attr('stroke-linejoin', 'round')
+
+        // Count text
+        badgeGroup.append('text')
+          .attr('x', 7)
+          .attr('y', 1)
+          .attr('text-anchor', 'start')
+          .attr('font-size', '9px')
+          .attr('font-weight', '600')
+          .attr('fill', '#1e293b')
+          .text(badge.count)
+      })
+    })
 
     // Helper function for orthogonal routing (Visio-style)
     const getOrthogonalPath = (source: GraphNode, target: GraphNode): string => {
@@ -362,6 +718,24 @@ export default function GraphEditor({ state, setState }: Props) {
       }
     }
 
+    // Add visual feedback for drag connection
+    if (dragConnection) {
+      const sourceNode = nodes.find(n => n.id === dragConnection.fromNodeId)
+      if (sourceNode && sourceNode.x !== undefined && sourceNode.y !== undefined) {
+        g.append('line')
+          .attr('class', 'drag-connection-line')
+          .attr('x1', sourceNode.x)
+          .attr('y1', sourceNode.y)
+          .attr('x2', dragConnection.x)
+          .attr('y2', dragConnection.y)
+          .attr('stroke', '#3b82f6')
+          .attr('stroke-width', 2)
+          .attr('stroke-dasharray', '5,5')
+          .attr('opacity', 0.6)
+          .attr('pointer-events', 'none')
+      }
+    }
+
     // Update positions on tick
     simulation.on('tick', () => {
       // Update orthogonal link paths
@@ -387,12 +761,213 @@ export default function GraphEditor({ state, setState }: Props) {
     return () => {
       simulation.stop()
     }
-  }, [state, layout])
+  }, [state, layout, dragConnection])
 
   return (
     <div className="graph-editor">
       <div className="graph-canvas">
         <svg ref={svgRef} className="graph-svg" />
+        {contextMenu && (
+          <div
+            style={{
+              position: 'fixed',
+              left: contextMenu.x,
+              top: contextMenu.y,
+              backgroundColor: 'white',
+              border: '1px solid #cbd5e1',
+              borderRadius: '6px',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+              zIndex: 1000,
+              minWidth: '160px',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {contextMenu.type === 'canvas' ? (
+              <div
+                style={{
+                  padding: '8px 12px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                }}
+                onClick={() => {
+                  createNewConcept()
+                  setContextMenu(null)
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'white')}
+              >
+                Add New Concept
+              </div>
+            ) : (
+              <div
+                style={{
+                  padding: '8px 12px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                }}
+                onClick={() => {
+                  if (contextMenu.nodeId) {
+                    createNewRelationship(contextMenu.nodeId)
+                  }
+                  setContextMenu(null)
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'white')}
+              >
+                Add New Relationship
+              </div>
+            )}
+          </div>
+        )}
+        {relationshipDialog && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 2000,
+            }}
+            onClick={() => setRelationshipDialog(null)}
+          >
+            <div
+              style={{
+                backgroundColor: 'white',
+                borderRadius: '8px',
+                padding: '24px',
+                maxWidth: '500px',
+                width: '90%',
+                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: '600' }}>
+                Create Relationship
+              </h3>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  const formData = new FormData(e.currentTarget)
+                  const relationshipName = formData.get('name') as string
+                  const cardinality = formData.get('cardinality') as string
+
+                  if (!relationshipName) {
+                    alert('Please enter a relationship name')
+                    return
+                  }
+
+                  const relationshipId = `${relationshipDialog.fromNodeId}_${relationshipName}_${relationshipDialog.toNodeId}`.toLowerCase().replace(/\s+/g, '_')
+
+                  setState({
+                    ...state,
+                    relationships: {
+                      ...state.relationships,
+                      [relationshipId]: {
+                        name: relationshipName,
+                        from_concept: relationshipDialog.fromNodeId,
+                        to_concept: relationshipDialog.toNodeId,
+                        cardinality: cardinality || undefined,
+                        realized_by: [],
+                      },
+                    },
+                  })
+                  setSelectedLink(relationshipId)
+                  setRelationshipDialog(null)
+                }}
+              >
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500', fontSize: '14px' }}>
+                    From:
+                  </label>
+                  <div style={{ padding: '8px 12px', backgroundColor: '#f1f5f9', borderRadius: '4px', fontSize: '14px' }}>
+                    {state.concepts[relationshipDialog.fromNodeId]?.name || relationshipDialog.fromNodeId}
+                  </div>
+                </div>
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500', fontSize: '14px' }}>
+                    To:
+                  </label>
+                  <div style={{ padding: '8px 12px', backgroundColor: '#f1f5f9', borderRadius: '4px', fontSize: '14px' }}>
+                    {state.concepts[relationshipDialog.toNodeId]?.name || relationshipDialog.toNodeId}
+                  </div>
+                </div>
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500', fontSize: '14px' }}>
+                    Relationship Name: *
+                  </label>
+                  <input
+                    type="text"
+                    name="name"
+                    placeholder="e.g., places, contains, belongs to"
+                    required
+                    autoFocus
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '4px',
+                      fontSize: '14px',
+                    }}
+                  />
+                </div>
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500', fontSize: '14px' }}>
+                    Cardinality:
+                  </label>
+                  <select
+                    name="cardinality"
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '4px',
+                      fontSize: '14px',
+                    }}
+                  >
+                    <option value="">Not specified</option>
+                    <option value="1:1">1:1 (One to One)</option>
+                    <option value="1:N">1:N (One to Many)</option>
+                    <option value="N:1">N:1 (Many to One)</option>
+                    <option value="N:M">N:M (Many to Many)</option>
+                  </select>
+                </div>
+                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                  <button
+                    type="button"
+                    onClick={() => setRelationshipDialog(null)}
+                    style={{
+                      padding: '8px 16px',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '4px',
+                      backgroundColor: 'white',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    style={{
+                      padding: '8px 16px',
+                      border: 'none',
+                      borderRadius: '4px',
+                      backgroundColor: '#3b82f6',
+                      color: 'white',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                    }}
+                  >
+                    Create
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
       <div className="graph-sidebar">
         {selectedNode && (
@@ -402,6 +977,7 @@ export default function GraphEditor({ state, setState }: Props) {
             state={state}
             setState={setState}
             onClose={() => setSelectedNode(null)}
+            availableModels={availableModels}
           />
         )}
         {selectedLink && (
@@ -411,13 +987,18 @@ export default function GraphEditor({ state, setState }: Props) {
             state={state}
             setState={setState}
             onClose={() => setSelectedLink(null)}
+            availableModels={availableModels}
           />
         )}
         {!selectedNode && !selectedLink && (
           <div className="sidebar-placeholder">
             <p>Click on a concept or relationship to edit</p>
-            <button className="add-concept-btn">+ Add Concept</button>
-            <button className="add-relationship-btn">+ Add Relationship</button>
+            <div style={{ marginTop: '16px', padding: '12px', backgroundColor: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '6px', fontSize: '13px', color: '#0c4a6e' }}>
+              <div style={{ fontWeight: '600', marginBottom: '8px' }}>Quick Actions:</div>
+              <div style={{ marginBottom: '4px' }}>• Right-click canvas → Add Concept</div>
+              <div style={{ marginBottom: '4px' }}>• Hold <kbd style={{ padding: '2px 6px', backgroundColor: 'white', border: '1px solid #cbd5e1', borderRadius: '3px', fontSize: '12px' }}>Shift</kbd> + drag from one concept to another → Create Relationship</div>
+              <div>• Right-click concept → Add Relationship</div>
+            </div>
           </div>
         )}
       </div>
@@ -431,12 +1012,14 @@ interface ConceptPanelProps {
   state: State
   setState: (state: State) => void
   onClose: () => void
+  availableModels: { silver: string[]; gold: string[] }
 }
 
-function ConceptPanel({ conceptId, concept, state, setState, onClose }: ConceptPanelProps) {
-  const [editedConcept, setEditedConcept] = useState(concept)
+function ConceptPanel({ conceptId, concept, state, setState, onClose, availableModels }: ConceptPanelProps) {
   const [customDomain, setCustomDomain] = useState('')
   const [customOwner, setCustomOwner] = useState('')
+  const [activeTab, setActiveTab] = useState<'properties' | 'models'>('properties')
+  const [modelLayerTab, setModelLayerTab] = useState<'bronze' | 'silver' | 'gold'>('bronze')
 
   // Get unique owners from all concepts
   const existingOwners = Array.from(new Set(
@@ -445,37 +1028,78 @@ function ConceptPanel({ conceptId, concept, state, setState, onClose }: ConceptP
       .filter(o => o && o.trim() !== '')
   )).sort()
 
-  const handleSave = () => {
+  // Update concept directly in state (instant save)
+  const updateConcept = (updates: Partial<Concept>) => {
     setState({
       ...state,
       concepts: {
         ...state.concepts,
-        [conceptId]: editedConcept,
+        [conceptId]: { ...concept, ...updates },
       },
     })
-    onClose()
+  }
+
+  // Sort models: selected first, then unselected alphabetically
+  const getSortedModels = (allModels: string[], selectedModels: string[]) => {
+    const selected = allModels.filter(m => selectedModels.includes(m)).sort()
+    const unselected = allModels.filter(m => !selectedModels.includes(m)).sort()
+    return [...selected, ...unselected]
   }
 
   return (
     <div className="panel">
       <div className="panel-header">
-        <h3>Properties</h3>
+        <h3>{concept.name}</h3>
         <button onClick={onClose}>✕</button>
       </div>
-      <div className="panel-content">
+      <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
+        <button
+          onClick={() => setActiveTab('properties')}
+          style={{
+            flex: 1,
+            padding: '12px',
+            border: 'none',
+            background: activeTab === 'properties' ? 'white' : 'transparent',
+            borderBottom: activeTab === 'properties' ? '2px solid #3b82f6' : '2px solid transparent',
+            cursor: 'pointer',
+            fontWeight: activeTab === 'properties' ? '600' : '400',
+            color: activeTab === 'properties' ? '#1e293b' : '#64748b'
+          }}
+        >
+          Properties
+        </button>
+        <button
+          onClick={() => setActiveTab('models')}
+          style={{
+            flex: 1,
+            padding: '12px',
+            border: 'none',
+            background: activeTab === 'models' ? 'white' : 'transparent',
+            borderBottom: activeTab === 'models' ? '2px solid #3b82f6' : '2px solid transparent',
+            cursor: 'pointer',
+            fontWeight: activeTab === 'models' ? '600' : '400',
+            color: activeTab === 'models' ? '#1e293b' : '#64748b'
+          }}
+        >
+          Models ({(concept.bronze_models?.length || 0) + (concept.silver_models?.length || 0) + (concept.gold_models?.length || 0)})
+        </button>
+      </div>
+      <div className="panel-content">{activeTab === 'properties' ? (
+        // Properties Tab
+        <>
         <label>
           Name:
           <input
             type="text"
-            value={editedConcept.name}
-            onChange={(e) => setEditedConcept({ ...editedConcept, name: e.target.value })}
+            value={concept.name}
+            onChange={(e) => updateConcept({ name: e.target.value })}
           />
         </label>
         <label>
           Description (Markdown):
           <textarea
-            value={editedConcept.description || ''}
-            onChange={(e) => setEditedConcept({ ...editedConcept, description: e.target.value })}
+            value={concept.description || ''}
+            onChange={(e) => updateConcept({ description: e.target.value })}
             placeholder="Supports markdown formatting..."
             rows={6}
             style={{ fontFamily: 'monospace', fontSize: '12px' }}
@@ -485,12 +1109,12 @@ function ConceptPanel({ conceptId, concept, state, setState, onClose }: ConceptP
           Domain:
           <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
             <select
-              value={editedConcept.domain || ''}
+              value={concept.domain || ''}
               onChange={(e) => {
                 if (e.target.value === '__custom__') {
                   setCustomDomain('')
                 } else {
-                  setEditedConcept({ ...editedConcept, domain: e.target.value })
+                  updateConcept({ domain: e.target.value })
                   setCustomDomain('')
                 }
               }}
@@ -505,34 +1129,34 @@ function ConceptPanel({ conceptId, concept, state, setState, onClose }: ConceptP
               <option value="__custom__">+ Add new domain...</option>
             </select>
           </div>
-          {(editedConcept.domain === '' || customDomain !== '') && (
+          {(concept.domain === '' || customDomain !== '') && (
             <input
               type="text"
               value={customDomain}
               onChange={(e) => {
                 setCustomDomain(e.target.value)
-                setEditedConcept({ ...editedConcept, domain: e.target.value })
+                updateConcept({ domain: e.target.value })
               }}
               placeholder="Enter new domain ID (e.g., 'sales', 'finance')"
               style={{ marginTop: '8px' }}
             />
           )}
-          {editedConcept.domain && (
+          {concept.domain && (
             <div style={{ marginTop: '8px' }}>
               <label style={{ fontSize: '12px', color: '#64748b' }}>
                 Domain Color:
                 <select
-                  value={editedConcept.domain && state.domains[editedConcept.domain]?.color || ''}
+                  value={concept.domain && state.domains[concept.domain]?.color || ''}
                   onChange={(e) => {
-                    if (editedConcept.domain) {
+                    if (concept.domain) {
                       setState({
                         ...state,
                         domains: {
                           ...state.domains,
-                          [editedConcept.domain]: {
-                            ...state.domains[editedConcept.domain],
-                            name: state.domains[editedConcept.domain]?.name || editedConcept.domain,
-                            display_name: state.domains[editedConcept.domain]?.display_name || editedConcept.domain,
+                          [concept.domain]: {
+                            ...state.domains[concept.domain],
+                            name: state.domains[concept.domain]?.name || concept.domain,
+                            display_name: state.domains[concept.domain]?.display_name || concept.domain,
                             color: e.target.value,
                           }
                         }
@@ -560,12 +1184,12 @@ function ConceptPanel({ conceptId, concept, state, setState, onClose }: ConceptP
           Owner:
           <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
             <select
-              value={editedConcept.owner || ''}
+              value={concept.owner || ''}
               onChange={(e) => {
                 if (e.target.value === '__custom__') {
                   setCustomOwner('')
                 } else {
-                  setEditedConcept({ ...editedConcept, owner: e.target.value })
+                  updateConcept({ owner: e.target.value })
                   setCustomOwner('')
                 }
               }}
@@ -580,13 +1204,13 @@ function ConceptPanel({ conceptId, concept, state, setState, onClose }: ConceptP
               <option value="__custom__">+ Add new owner...</option>
             </select>
           </div>
-          {(editedConcept.owner === '' || customOwner !== '') && (
+          {(concept.owner === '' || customOwner !== '') && (
             <input
               type="text"
               value={customOwner}
               onChange={(e) => {
                 setCustomOwner(e.target.value)
-                setEditedConcept({ ...editedConcept, owner: e.target.value })
+                updateConcept({ owner: e.target.value })
               }}
               placeholder="Enter owner name (e.g., 'data_team', 'analytics')"
               style={{ marginTop: '8px' }}
@@ -596,8 +1220,8 @@ function ConceptPanel({ conceptId, concept, state, setState, onClose }: ConceptP
         <label>
           Status:
           <select
-            value={editedConcept.status || 'draft'}
-            onChange={(e) => setEditedConcept({ ...editedConcept, status: e.target.value as any })}
+            value={concept.status || 'draft'}
+            onChange={(e) => updateConcept({ status: e.target.value as any })}
           >
             <option value="draft">Draft</option>
             <option value="complete">Complete</option>
@@ -605,7 +1229,173 @@ function ConceptPanel({ conceptId, concept, state, setState, onClose }: ConceptP
             <option value="deprecated">Deprecated</option>
           </select>
         </label>
-        <button onClick={handleSave} className="save-panel-btn">Save Changes</button>
+        <label>
+          Color:
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <input
+              type="color"
+              value={concept.color || (concept.domain && state.domains[concept.domain]?.color) || '#E3F2FD'}
+              onChange={(e) => updateConcept({ color: e.target.value })}
+              style={{ width: '60px', height: '36px', cursor: 'pointer' }}
+            />
+            <span style={{ fontSize: '12px', color: '#64748b' }}>
+              {concept.color ? 'Custom' : `From ${concept.domain || 'default'}`}
+            </span>
+            {concept.color && (
+              <button
+                type="button"
+                onClick={() => updateConcept({ color: undefined })}
+                style={{ padding: '4px 8px', fontSize: '12px' }}
+              >
+                Reset
+              </button>
+            )}
+          </div>
+        </label>
+        </>
+      ) : (
+        // Models Tab
+        <>
+        <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', backgroundColor: '#f1f5f9', marginBottom: '12px' }}>
+          <button
+            onClick={() => setModelLayerTab('bronze')}
+            style={{
+              flex: 1,
+              padding: '10px',
+              border: 'none',
+              background: modelLayerTab === 'bronze' ? 'white' : 'transparent',
+              borderBottom: modelLayerTab === 'bronze' ? '2px solid #3b82f6' : '2px solid transparent',
+              cursor: 'pointer',
+              fontWeight: modelLayerTab === 'bronze' ? '600' : '400',
+              color: modelLayerTab === 'bronze' ? '#1e293b' : '#64748b',
+              fontSize: '13px'
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" style={{ display: 'inline-block', marginRight: '6px', verticalAlign: 'middle' }}>
+              <path d="M3 17l9 5l9 -5v-3l-9 5l-9 -5v-3l9 5l9 -5v-3l-9 5l-9 -5l9 -5l5.418 3.01" fill="none" stroke="#CD7F32" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Bronze ({concept.bronze_models?.length || 0})
+          </button>
+          <button
+            onClick={() => setModelLayerTab('silver')}
+            style={{
+              flex: 1,
+              padding: '10px',
+              border: 'none',
+              background: modelLayerTab === 'silver' ? 'white' : 'transparent',
+              borderBottom: modelLayerTab === 'silver' ? '2px solid #3b82f6' : '2px solid transparent',
+              cursor: 'pointer',
+              fontWeight: modelLayerTab === 'silver' ? '600' : '400',
+              color: modelLayerTab === 'silver' ? '#1e293b' : '#64748b',
+              fontSize: '13px'
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" style={{ display: 'inline-block', marginRight: '6px', verticalAlign: 'middle' }}>
+              <path d="M3 17l9 5l9 -5v-3l-9 5l-9 -5v-3l9 5l9 -5v-3l-9 5l-9 -5l9 -5l5.418 3.01" fill="none" stroke="#C0C0C0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Silver ({concept.silver_models?.length || 0})
+          </button>
+          <button
+            onClick={() => setModelLayerTab('gold')}
+            style={{
+              flex: 1,
+              padding: '10px',
+              border: 'none',
+              background: modelLayerTab === 'gold' ? 'white' : 'transparent',
+              borderBottom: modelLayerTab === 'gold' ? '2px solid #3b82f6' : '2px solid transparent',
+              cursor: 'pointer',
+              fontWeight: modelLayerTab === 'gold' ? '600' : '400',
+              color: modelLayerTab === 'gold' ? '#1e293b' : '#64748b',
+              fontSize: '13px'
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" style={{ display: 'inline-block', marginRight: '6px', verticalAlign: 'middle' }}>
+              <path d="M3 17l9 5l9 -5v-3l-9 5l-9 -5v-3l9 5l9 -5v-3l-9 5l-9 -5l9 -5l5.418 3.01" fill="none" stroke="#FFD700" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Gold ({concept.gold_models?.length || 0})
+          </button>
+        </div>
+
+        {modelLayerTab === 'bronze' ? (
+          <div>
+            <div style={{ marginBottom: '12px', padding: '8px', backgroundColor: '#fef3c7', border: '1px solid #fcd34d', borderRadius: '4px', fontSize: '12px', color: '#78350f' }}>
+              Bronze sources are automatically discovered from manifest.json (run dbt parse/compile first)
+            </div>
+            <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '4px', padding: '8px', backgroundColor: '#f8fafc' }}>
+              {concept.bronze_models?.length === 0 ? (
+                <div style={{ padding: '8px', color: '#64748b', fontSize: '13px' }}>No bronze sources found</div>
+              ) : (
+                concept.bronze_models?.map(model => (
+                  <div key={model} style={{ padding: '6px 4px', fontFamily: 'monospace', fontSize: '13px', color: '#1e293b' }}>
+                    {model}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        ) : modelLayerTab === 'silver' ? (
+          <div>
+            <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '4px', padding: '8px', backgroundColor: '#f8fafc' }}>
+              {availableModels.silver.length === 0 ? (
+                <div style={{ padding: '8px', color: '#64748b', fontSize: '13px' }}>No silver models found</div>
+              ) : (
+                getSortedModels(availableModels.silver, concept.silver_models || []).map(model => (
+                  <label key={model} style={{ display: 'flex', alignItems: 'center', padding: '6px 4px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={concept.silver_models?.includes(model) || false}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          updateConcept({
+                            silver_models: [...(concept.silver_models || []), model]
+                          })
+                        } else {
+                          updateConcept({
+                            silver_models: (concept.silver_models || []).filter(m => m !== model)
+                          })
+                        }
+                      }}
+                      style={{ width: '16px', height: '16px', margin: '0 8px 0 0', flexShrink: 0 }}
+                    />
+                    <span style={{ fontFamily: 'monospace', fontSize: '13px', flex: 1 }}>{model}</span>
+                  </label>
+                ))
+              )}
+            </div>
+          </div>
+        ) : (
+          <div>
+            <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '4px', padding: '8px', backgroundColor: '#f8fafc' }}>
+              {availableModels.gold.length === 0 ? (
+                <div style={{ padding: '8px', color: '#64748b', fontSize: '13px' }}>No gold models found</div>
+              ) : (
+                getSortedModels(availableModels.gold, concept.gold_models || []).map(model => (
+                  <label key={model} style={{ display: 'flex', alignItems: 'center', padding: '6px 4px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={concept.gold_models?.includes(model) || false}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          updateConcept({
+                            gold_models: [...(concept.gold_models || []), model]
+                          })
+                        } else {
+                          updateConcept({
+                            gold_models: (concept.gold_models || []).filter(m => m !== model)
+                          })
+                        }
+                      }}
+                      style={{ width: '16px', height: '16px', margin: '0 8px 0 0', flexShrink: 0 }}
+                    />
+                    <span style={{ fontFamily: 'monospace', fontSize: '13px', flex: 1 }}>{model}</span>
+                  </label>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+        </>
+      )}
       </div>
     </div>
   )
@@ -617,42 +1407,83 @@ interface RelationshipPanelProps {
   state: State
   setState: (state: State) => void
   onClose: () => void
+  availableModels: { silver: string[]; gold: string[] }
 }
 
-function RelationshipPanel({ relationshipId, relationship, state, setState, onClose }: RelationshipPanelProps) {
-  const [editedRel, setEditedRel] = useState(relationship)
+function RelationshipPanel({ relationshipId, relationship, state, setState, onClose, availableModels }: RelationshipPanelProps) {
+  const [activeTab, setActiveTab] = useState<'properties' | 'models'>('properties')
 
-  const handleSave = () => {
+  // Update relationship directly in state (instant save)
+  const updateRelationship = (updates: Partial<Relationship>) => {
     setState({
       ...state,
       relationships: {
         ...state.relationships,
-        [relationshipId]: editedRel,
+        [relationshipId]: { ...relationship, ...updates },
       },
     })
-    onClose()
+  }
+
+  // Sort models: selected first, then unselected alphabetically
+  const getSortedModels = (allModels: string[], selectedModels: string[]) => {
+    const selected = allModels.filter(m => selectedModels.includes(m)).sort()
+    const unselected = allModels.filter(m => !selectedModels.includes(m)).sort()
+    return [...selected, ...unselected]
   }
 
   return (
     <div className="panel">
       <div className="panel-header">
-        <h3>Edit Relationship</h3>
+        <h3>{editedRel.name}</h3>
         <button onClick={onClose}>✕</button>
       </div>
-      <div className="panel-content">
+      <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
+        <button
+          onClick={() => setActiveTab('properties')}
+          style={{
+            flex: 1,
+            padding: '12px',
+            border: 'none',
+            background: activeTab === 'properties' ? 'white' : 'transparent',
+            borderBottom: activeTab === 'properties' ? '2px solid #3b82f6' : '2px solid transparent',
+            cursor: 'pointer',
+            fontWeight: activeTab === 'properties' ? '600' : '400',
+            color: activeTab === 'properties' ? '#1e293b' : '#64748b'
+          }}
+        >
+          Properties
+        </button>
+        <button
+          onClick={() => setActiveTab('models')}
+          style={{
+            flex: 1,
+            padding: '12px',
+            border: 'none',
+            background: activeTab === 'models' ? 'white' : 'transparent',
+            borderBottom: activeTab === 'models' ? '2px solid #3b82f6' : '2px solid transparent',
+            cursor: 'pointer',
+            fontWeight: activeTab === 'models' ? '600' : '400',
+            color: activeTab === 'models' ? '#1e293b' : '#64748b'
+          }}
+        >
+          Models ({editedRel.realized_by?.length || 0})
+        </button>
+      </div>
+      <div className="panel-content">{activeTab === 'properties' ? (
+        <>
         <label>
           Name:
           <input
             type="text"
-            value={editedRel.name}
-            onChange={(e) => setEditedRel({ ...editedRel, name: e.target.value })}
+            value={relationship.name}
+            onChange={(e) => updateRelationship({ name: e.target.value })}
           />
         </label>
         <label>
           From:
           <select
-            value={editedRel.from_concept}
-            onChange={(e) => setEditedRel({ ...editedRel, from_concept: e.target.value })}
+            value={relationship.from_concept}
+            onChange={(e) => updateRelationship({ from_concept: e.target.value })}
           >
             {Object.entries(state.concepts).map(([id, concept]) => (
               <option key={id} value={id}>{concept.name}</option>
@@ -662,8 +1493,8 @@ function RelationshipPanel({ relationshipId, relationship, state, setState, onCl
         <label>
           To:
           <select
-            value={editedRel.to_concept}
-            onChange={(e) => setEditedRel({ ...editedRel, to_concept: e.target.value })}
+            value={relationship.to_concept}
+            onChange={(e) => updateRelationship({ to_concept: e.target.value })}
           >
             {Object.entries(state.concepts).map(([id, concept]) => (
               <option key={id} value={id}>{concept.name}</option>
@@ -673,8 +1504,8 @@ function RelationshipPanel({ relationshipId, relationship, state, setState, onCl
         <label>
           Cardinality (informational):
           <select
-            value={editedRel.cardinality || ''}
-            onChange={(e) => setEditedRel({ ...editedRel, cardinality: e.target.value })}
+            value={relationship.cardinality || ''}
+            onChange={(e) => updateRelationship({ cardinality: e.target.value })}
           >
             <option value="">Not specified</option>
             <option value="1:1">1:1 (One to One)</option>
@@ -689,14 +1520,52 @@ function RelationshipPanel({ relationshipId, relationship, state, setState, onCl
         <label>
           Description (Markdown):
           <textarea
-            value={editedRel.description || ''}
-            onChange={(e) => setEditedRel({ ...editedRel, description: e.target.value })}
+            value={relationship.description || ''}
+            onChange={(e) => updateRelationship({ description: e.target.value })}
             placeholder="Supports markdown formatting..."
             rows={6}
             style={{ fontFamily: 'monospace', fontSize: '12px' }}
           />
         </label>
-        <button onClick={handleSave} className="save-panel-btn">Save Changes</button>
+        </>
+      ) : (
+        <>
+        <div style={{ marginTop: '8px' }}>
+          <label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <span>Realized By Models ({relationship.realized_by?.length || 0}):</span>
+            </div>
+            <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '4px', padding: '8px', backgroundColor: '#f8fafc' }}>
+              {[...availableModels.silver, ...availableModels.gold].length === 0 ? (
+                <div style={{ padding: '8px', color: '#64748b', fontSize: '13px' }}>No models found</div>
+              ) : (
+                getSortedModels([...availableModels.silver, ...availableModels.gold], relationship.realized_by || []).map(model => (
+                  <label key={model} style={{ display: 'flex', alignItems: 'center', padding: '6px 4px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={relationship.realized_by?.includes(model) || false}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          updateRelationship({
+                            realized_by: [...(relationship.realized_by || []), model]
+                          })
+                        } else {
+                          updateRelationship({
+                            realized_by: (relationship.realized_by || []).filter(m => m !== model)
+                          })
+                        }
+                      }}
+                      style={{ width: '16px', height: '16px', margin: '0 8px 0 0', flexShrink: 0 }}
+                    />
+                    <span style={{ fontFamily: 'monospace', fontSize: '13px', flex: 1 }}>{model}</span>
+                  </label>
+                ))
+              )}
+            </div>
+          </label>
+        </div>
+        </>
+      )}
       </div>
     </div>
   )
