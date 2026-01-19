@@ -46,15 +46,17 @@ class Validator:
         "deprecated": ["name", "domain", "owner", "definition"],
     }
 
-    def __init__(self, config: Config, state: ProjectState):
+    def __init__(self, config: Config, state: ProjectState, no_drafts: bool = False):
         """Initialize the validator.
 
         Args:
             config: Configuration object
             state: Project state to validate
+            no_drafts: If True, treat stub/draft concepts and relationships as errors
         """
         self.config = config
         self.state = state
+        self.no_drafts = no_drafts
         self.issues: list[ValidationIssue] = []
 
     def validate(self) -> list[ValidationIssue]:
@@ -335,23 +337,64 @@ class Validator:
                 )
 
     def _check_stub_concepts(self) -> None:
-        """Info messages for stub concepts that need attention."""
+        """Info messages for stub concepts that need attention (or errors if --no-drafts)."""
         for concept_id, concept in self.state.concepts.items():
-            if concept.status == "stub":
+            if concept.status in ("stub", "draft"):
                 missing = []
                 for field in ["domain", "owner", "definition"]:
                     if getattr(concept, field, None) is None:
                         missing.append(field)
 
                 if missing:
+                    # If --no-drafts is set, treat as error; otherwise info
+                    severity = Severity.ERROR if self.no_drafts else Severity.INFO
+                    code = "E201" if self.no_drafts else "I001"
+                    status_label = concept.status.capitalize()
+
                     self.issues.append(
                         ValidationIssue(
-                            severity=Severity.INFO,
-                            code="I001",
-                            message=f"Stub concept '{concept_id}' needs enrichment: missing {', '.join(missing)}",
+                            severity=severity,
+                            code=code,
+                            message=f"{status_label} concept '{concept_id}' needs enrichment: missing {', '.join(missing)}",
                             context={
                                 "concept": concept_id,
                                 "missing": missing,
+                                "status": concept.status,
+                            },
+                        )
+                    )
+
+        # Also check relationships
+        for _rel_id, rel in self.state.relationships.items():
+            if rel.status in ("stub", "draft"):
+                missing = []
+                if not rel.domains:
+                    missing.append("domain")
+                if rel.cardinality == "N:M" and not rel.realized_by:
+                    missing.append("realization")
+                if not rel.definition:
+                    missing.append("definition")
+
+                if missing or rel.status in ("stub", "draft"):
+                    # If --no-drafts is set, treat as error; otherwise info
+                    severity = Severity.ERROR if self.no_drafts else Severity.INFO
+                    code = "E202" if self.no_drafts else "I002"
+                    status_label = rel.status.capitalize()
+
+                    if missing:
+                        msg = f"{status_label} relationship '{rel.name}' needs enrichment: missing {', '.join(missing)}"
+                    else:
+                        msg = f"{status_label} relationship '{rel.name}' is incomplete"
+
+                    self.issues.append(
+                        ValidationIssue(
+                            severity=severity,
+                            code=code,
+                            message=msg,
+                            context={
+                                "relationship": rel.name,
+                                "missing": missing,
+                                "status": rel.status,
                             },
                         )
                     )

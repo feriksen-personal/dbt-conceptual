@@ -218,11 +218,18 @@ def _print_concept_status(concept_id: str, concept: ConceptState) -> None:
     default="human",
     help="Output format: human (default) or github (GitHub Actions annotations)",
 )
+@click.option(
+    "--no-drafts",
+    is_flag=True,
+    default=False,
+    help="Fail if any concepts or relationships are incomplete (stub/draft status)",
+)
 def validate(
     project_dir: Optional[Path],
     silver_paths: tuple[str, ...],
     gold_paths: tuple[str, ...],
     output_format: str,
+    no_drafts: bool,
 ) -> None:
     """Validate conceptual model correspondence (for CI)."""
     # Load configuration
@@ -248,7 +255,7 @@ def validate(
     state = builder.build()
 
     # Run validation
-    validator = Validator(config, state)
+    validator = Validator(config, state, no_drafts=no_drafts)
     issues = validator.validate()
 
     if output_format == "github":
