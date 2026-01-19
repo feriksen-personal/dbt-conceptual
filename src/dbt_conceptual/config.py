@@ -1,10 +1,30 @@
 """Configuration management for dbt-conceptual."""
 
 from dataclasses import dataclass, field
+from enum import Enum
 from pathlib import Path
 from typing import Optional
 
 import yaml
+
+
+class RuleSeverity(Enum):
+    """Configurable validation rule severity."""
+
+    ERROR = "error"
+    WARN = "warn"
+    IGNORE = "ignore"
+
+
+@dataclass
+class ValidationConfig:
+    """Validation rule configuration."""
+
+    orphan_models: RuleSeverity = RuleSeverity.WARN
+    unimplemented_concepts: RuleSeverity = RuleSeverity.WARN
+    unrealized_relationships: RuleSeverity = RuleSeverity.WARN
+    missing_definitions: RuleSeverity = RuleSeverity.IGNORE
+    domain_mismatch: RuleSeverity = RuleSeverity.WARN
 
 
 @dataclass
@@ -15,7 +35,7 @@ class Config:
     conceptual_path: str = "models/conceptual"
     silver_paths: list[str] = field(default_factory=lambda: ["models/silver"])
     gold_paths: list[str] = field(default_factory=lambda: ["models/gold"])
-    strict: bool = True
+    validation: ValidationConfig = field(default_factory=ValidationConfig)
 
     @property
     def conceptual_file(self) -> Path:
@@ -45,12 +65,12 @@ class Config:
             project_dir = Path(project_dir)
 
         # Start with defaults
-        config_data = {
+        config_data: dict[str, object] = {
             "conceptual_path": "models/conceptual",
             "silver_paths": ["models/silver"],
             "gold_paths": ["models/gold"],
-            "strict": True,
         }
+        validation_data: dict[str, str] = {}
 
         # Try to load from dbt_project.yml
         dbt_project_file = project_dir / "dbt_project.yml"
@@ -59,6 +79,9 @@ class Config:
                 dbt_project = yaml.safe_load(f)
                 if dbt_project and "vars" in dbt_project:
                     dbt_conceptual_vars = dbt_project["vars"].get("dbt_conceptual", {})
+                    # Extract validation config separately
+                    if "validation" in dbt_conceptual_vars:
+                        validation_data = dbt_conceptual_vars.pop("validation")
                     config_data.update(dbt_conceptual_vars)
 
         # Apply CLI overrides
@@ -69,13 +92,45 @@ class Config:
         if gold_paths is not None:
             config_data["gold_paths"] = gold_paths
 
+        # Build validation config
+        validation_config = cls._parse_validation_config(validation_data)
+
+        # Cast to expected types
+        silver = config_data["silver_paths"]
+        gold = config_data["gold_paths"]
+
         return cls(
             project_dir=project_dir,
-            conceptual_path=config_data["conceptual_path"],  # type: ignore[arg-type]
-            silver_paths=config_data["silver_paths"],  # type: ignore[arg-type]
-            gold_paths=config_data["gold_paths"],  # type: ignore[arg-type]
-            strict=config_data["strict"],  # type: ignore[arg-type]
+            conceptual_path=str(config_data["conceptual_path"]),
+            silver_paths=silver if isinstance(silver, list) else [str(silver)],
+            gold_paths=gold if isinstance(gold, list) else [str(gold)],
+            validation=validation_config,
         )
+
+    @classmethod
+    def _parse_validation_config(cls, data: dict[str, str]) -> ValidationConfig:
+        """Parse validation config from YAML data."""
+        config = ValidationConfig()
+
+        severity_map = {
+            "error": RuleSeverity.ERROR,
+            "warn": RuleSeverity.WARN,
+            "ignore": RuleSeverity.IGNORE,
+        }
+
+        for rule_name in [
+            "orphan_models",
+            "unimplemented_concepts",
+            "unrealized_relationships",
+            "missing_definitions",
+            "domain_mismatch",
+        ]:
+            if rule_name in data:
+                severity_str = data[rule_name].lower()
+                if severity_str in severity_map:
+                    setattr(config, rule_name, severity_map[severity_str])
+
+        return config
 
     def get_layer(self, model_path: str) -> Optional[str]:
         """Detect layer from path. Returns 'silver', 'gold', or None."""

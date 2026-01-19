@@ -605,12 +605,12 @@ def export_coverage(state: ProjectState, output: TextIO) -> None:
 """
         )
 
-        for model in sorted(state.orphan_models):
+        for orphan in sorted(state.orphan_models, key=lambda o: o.name):
             output.write(
                 """
                 <div class="orphan-item">"""
             )
-            output.write(model)
+            output.write(orphan.name)
             output.write(
                 """</div>
 """

@@ -8,7 +8,7 @@ from rich.console import Console
 
 from dbt_conceptual.config import Config
 from dbt_conceptual.parser import StateBuilder
-from dbt_conceptual.state import ConceptState
+from dbt_conceptual.state import ConceptState, ProjectState
 from dbt_conceptual.validator import Severity, Validator
 
 console = Console()
@@ -211,10 +211,18 @@ def _print_concept_status(concept_id: str, concept: ConceptState) -> None:
     multiple=True,
     help="Override gold layer paths",
 )
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["human", "github"], case_sensitive=False),
+    default="human",
+    help="Output format: human (default) or github (GitHub Actions annotations)",
+)
 def validate(
     project_dir: Optional[Path],
     silver_paths: tuple[str, ...],
     gold_paths: tuple[str, ...],
+    output_format: str,
 ) -> None:
     """Validate conceptual model correspondence (for CI)."""
     # Load configuration
@@ -226,10 +234,13 @@ def validate(
 
     # Check if conceptual.yml exists
     if not config.conceptual_file.exists():
-        console.print(
-            f"[red]Error: conceptual.yml not found at {config.conceptual_file}[/red]"
-        )
-        console.print("\nRun 'dbt-conceptual init' to create it.")
+        if output_format == "github":
+            print(f"::error file={config.conceptual_file}::conceptual.yml not found")
+        else:
+            console.print(
+                f"[red]Error: conceptual.yml not found at {config.conceptual_file}[/red]"
+            )
+            console.print("\nRun 'dbt-conceptual init' to create it.")
         raise click.Abort()
 
     # Build state
@@ -240,6 +251,56 @@ def validate(
     validator = Validator(config, state)
     issues = validator.validate()
 
+    if output_format == "github":
+        _output_github_format(config, validator, issues)
+    else:
+        _output_human_format(config, state, validator, issues)
+
+    # Exit with appropriate code
+    if validator.has_errors():
+        if output_format != "github":
+            console.print("\n[red]FAILED[/red]")
+        raise SystemExit(1)
+    else:
+        if output_format != "github":
+            console.print("\n[green]PASSED[/green]")
+        raise SystemExit(0)
+
+
+def _output_github_format(
+    config: Config,
+    validator: Validator,
+    issues: list,
+) -> None:
+    """Output validation results in GitHub Actions annotation format."""
+    conceptual_file = str(config.conceptual_file)
+
+    for issue in issues:
+        if issue.severity == Severity.ERROR:
+            level = "error"
+        elif issue.severity == Severity.WARNING:
+            level = "warning"
+        else:
+            level = "notice"
+
+        # GitHub Actions annotation format: ::level file=path::message
+        print(f"::{level} file={conceptual_file}::[{issue.code}] {issue.message}")
+
+    # Print summary
+    summary = validator.get_summary()
+    print(
+        f"Validation complete: {summary['errors']} errors, "
+        f"{summary['warnings']} warnings, {summary['info']} info"
+    )
+
+
+def _output_human_format(
+    config: Config,
+    state: ProjectState,
+    validator: Validator,
+    issues: list,
+) -> None:
+    """Output validation results in human-readable format."""
     # Display concept coverage
     console.print("\n[bold]Concept Coverage[/bold]")
     console.print("=" * 80)
@@ -325,14 +386,6 @@ def validate(
         f"{summary['warnings']} warnings, "
         f"{summary['info']} info"
     )
-
-    # Exit with appropriate code
-    if validator.has_errors():
-        console.print("\n[red]FAILED[/red]")
-        raise SystemExit(1)
-    else:
-        console.print("\n[green]PASSED[/green]")
-        raise SystemExit(0)
 
 
 @main.command()
@@ -461,8 +514,9 @@ def sync(project_dir: Optional[Path], create_stubs: bool, model: Optional[str]) 
     orphans = state.orphan_models
     if model:
         # Filter to specific model
-        if model in orphans:
-            orphans = [model]
+        orphan_names = [o.name for o in orphans]
+        if model in orphan_names:
+            orphans = [o for o in orphans if o.name == model]
         else:
             console.print(f"[yellow]Model '{model}' is not an orphan[/yellow]")
             if model in [m for c in state.concepts.values() for m in c.gold_models]:
@@ -485,7 +539,7 @@ def sync(project_dir: Optional[Path], create_stubs: bool, model: Optional[str]) 
     # Display orphans
     console.print(f"\n[bold]Found {len(orphans)} orphan model(s):[/bold]")
     for orphan in orphans:
-        console.print(f"  - {orphan}")
+        console.print(f"  - {orphan.name}")
 
     if not create_stubs:
         console.print(
@@ -508,7 +562,7 @@ def sync(project_dir: Optional[Path], create_stubs: bool, model: Optional[str]) 
     for orphan in orphans:
         # Generate concept ID from model name
         # Strip prefixes like dim_, fact_, stg_
-        concept_id = orphan
+        concept_id = orphan.name
         for prefix in ["dim_", "fact_", "stg_", "fct_", "bridge_"]:
             if concept_id.startswith(prefix):
                 concept_id = concept_id[len(prefix) :]
@@ -517,16 +571,28 @@ def sync(project_dir: Optional[Path], create_stubs: bool, model: Optional[str]) 
         # Check if concept already exists
         if concept_id in conceptual_data["concepts"]:
             console.print(
-                f"[yellow]Skipping {orphan}: concept '{concept_id}' already exists[/yellow]"
+                f"[yellow]Skipping {orphan.name}: concept '{concept_id}' already exists[/yellow]"
             )
             continue
 
-        # Create stub
-        conceptual_data["concepts"][concept_id] = {
+        # Create stub with data from model if available
+        stub_data: dict[str, object] = {
             "name": concept_id.replace("_", " ").title(),
             "status": "stub",
         }
-        stubs_created.append((orphan, concept_id))
+
+        # Use model description as definition if available
+        if orphan.description:
+            stub_data["definition"] = orphan.description
+
+        # Use meta.domain if available
+        if orphan.domain:
+            stub_data["domain"] = orphan.domain
+
+        conceptual_data["concepts"][concept_id] = {
+            k: v for k, v in stub_data.items() if v is not None
+        }
+        stubs_created.append((orphan.name, concept_id))
 
     if not stubs_created:
         console.print("[yellow]No stubs created (concepts already exist)[/yellow]")
@@ -537,8 +603,8 @@ def sync(project_dir: Optional[Path], create_stubs: bool, model: Optional[str]) 
         yaml.dump(conceptual_data, f, default_flow_style=False, sort_keys=False)
 
     console.print(f"\n[green]✓ Created {len(stubs_created)} stub concept(s):[/green]")
-    for orphan, concept_id in stubs_created:
-        console.print(f"  - {concept_id} (from {orphan})")
+    for model_name, concept_id in stubs_created:
+        console.print(f"  - {concept_id} (from {model_name})")
 
     console.print(
         f"\n[green bold]Sync complete![/green bold] Updated {config.conceptual_file}"
