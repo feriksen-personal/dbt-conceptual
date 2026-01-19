@@ -22,11 +22,11 @@ The logo represents a conceptual entity — the atomic building block from which
 
 ### Sizes
 
-| Size | Dimensions | File | Use |
-| ---- | ---------- | ---- | --- |
-| Large | 56×63px | `logos/logo-large.svg` | Hero, documentation |
-| Medium | 40×45px | `logos/logo-medium.svg` | App header, banners |
-| Small | 26×30px | `logos/logo-small.svg` | Favicon, compact UI |
+| Size | Dimensions | Files | Use |
+| ---- | ---------- | ----- | --- |
+| Large | 56×63px | `logos/logo-large.svg`, `logos/logo-large.png` | Hero, documentation |
+| Medium | 40×45px | `logos/logo-medium.svg`, `logos/logo-medium.png` | App header, banners |
+| Small | 26×30px | `logos/logo-small.svg`, `logos/logo-small.png` | Favicon, compact UI |
 
 ### Wordmark
 
@@ -43,23 +43,35 @@ The logo represents a conceptual entity — the atomic building block from which
 
 ## Social Banner
 
-The GitHub social preview banner (`social-banner.svg`) is 1280×640px and includes:
+The GitHub social preview banner is 1280×640px and includes:
 
 - Logo (scaled 4x)
 - Wordmark and tagline
 - Example concept graph visualization
 - Grid pattern background
 
+**Files**:
+- `social-banner.svg` - Vector version
+- `social-banner.png` - PNG version for GitHub (48KB)
+
 ## Usage
 
 ### GitHub Repository
 
-The social banner is used as the repository's social preview image. Configure it in:
-Settings → General → Social preview
+Upload `social-banner.png` as the repository's social preview image:
+1. Go to repository Settings
+2. General → Social preview
+3. Upload `social-banner.png`
 
 ### Favicon
 
-Use `favicon.svg` for modern browsers. For broader compatibility, generate `favicon.ico` from `logos/logo-small.svg`.
+Multiple formats available:
+
+- `favicon.svg` - Modern browsers (vector)
+- `favicon-32x32.png` - Standard favicon size
+- `favicon-16x16.png` - Small favicon size
+
+For `favicon.ico`, use online converter with `favicon-32x32.png` and `favicon-16x16.png`.
 
 ### Documentation
 
