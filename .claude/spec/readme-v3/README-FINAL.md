@@ -240,7 +240,7 @@ dbt-conceptual serve
 
 See which concepts are implemented at each layer:
 
-```text
+```
 $ dbt-conceptual status
 
 Concepts by Domain
@@ -260,7 +260,7 @@ catalog (1 concept)
 **Status logic:**
 
 | Status | Meaning |
-| ------ | ------- |
+|--------|---------|
 | `complete` | Has domain AND has implementing models |
 | `draft` | Missing domain OR zero implementing models |
 | `stub` | Created from sync — needs enrichment |
@@ -290,7 +290,7 @@ $ dbt-conceptual validate
 ERROR: dim_customer_legacy references concept 'client' which does not exist
        Did you mean: 'customer'?
 
-ERROR: fact_returns realizes 'customer:returns:order'
+ERROR: fact_returns realizes 'customer:returns:order' 
        but relationship 'returns' does not exist
 ```
 
@@ -316,7 +316,7 @@ dbt-conceptual diff --base main
 # Concepts:
 #   + refund (added)
 #   ~ customer (modified: definition changed)
-#
+# 
 # Relationships:
 #   + customer:requests:refund (added)
 ```
@@ -344,7 +344,7 @@ dbt-conceptual sync --create-stubs
 # Excalidraw — editable diagrams
 dbt-conceptual export --format excalidraw
 
-# PNG — static diagram image
+# PNG — static diagram image  
 dbt-conceptual export --format png -o diagram.png
 
 # Mermaid — for docs and GitHub
@@ -362,7 +362,7 @@ dbt-conceptual export --format bus-matrix
 ## Layer Model
 
 | Layer | Tagged How | Editable |
-| ----- | ---------- | -------- |
+|-------|------------|----------|
 | **Gold** | `meta.concept` in model.yml within gold_paths | Yes |
 | **Silver** | `meta.concept` in model.yml within silver_paths | Yes |
 | **Bronze** | Inferred from manifest.json lineage | No (read-only) |
@@ -392,7 +392,7 @@ vars:
 ## CLI Reference
 
 | Command | Description |
-| ------- | ----------- |
+|---------|-------------|
 | `dbt-conceptual init` | Initialize conceptual.yml |
 | `dbt-conceptual status` | Show coverage by domain |
 | `dbt-conceptual validate` | Validate model integrity |
