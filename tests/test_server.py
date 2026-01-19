@@ -83,6 +83,27 @@ def test_create_app_static_folder(temp_project):
     assert static_path.name in ("dist", "static")
 
 
+def test_create_app_static_folder_fallback(temp_project, monkeypatch):
+    """Test static folder falls back to 'static' when frontend/dist doesn't exist."""
+    # Mock Path.exists to simulate missing frontend/dist
+    original_exists = Path.exists
+
+    def mock_exists(self):
+        # Make frontend/dist appear to not exist
+        if "frontend" in str(self) and "dist" in str(self):
+            return False
+        return original_exists(self)
+
+    monkeypatch.setattr(Path, "exists", mock_exists)
+
+    app = create_app(temp_project)
+
+    # Should fall back to static folder
+    assert app.static_folder is not None
+    static_path = Path(app.static_folder)
+    assert static_path.name == "static"
+
+
 def test_index_route_no_frontend(temp_project, monkeypatch):
     """Test index route when frontend build doesn't exist."""
     # Mock Path.exists to simulate missing frontend build
