@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-01-19
+
+### Added
+
+- Complete React + TypeScript UI rebuild using React Flow for interactive canvas
+- Zustand state management for application state
+- 12 new React components for comprehensive UI experience
+- Design tokens CSS system (977 lines) for consistent styling
+- Property panel with tabs for editing concepts and viewing model associations
+- Settings modal for managing domains and layer path configuration
+- Comprehensive test suite for Flask server (13 tests)
+- Static file serving from Flask for production deployment
+
+### Changed
+
+- Redesigned UI architecture from basic React to full React Flow canvas
+- Improved Flask server to serve production React build
+- Enhanced test coverage with server-specific tests
+- Updated all CI workflows to include Flask dependencies
+
+### Fixed
+
+- Flask server now properly serves frontend build with fallback support
+- Coverage reporting integrated with Codecov app
+
 ## [0.3.0] - 2026-01-14
 
 ### Added
