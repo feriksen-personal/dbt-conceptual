@@ -456,18 +456,18 @@ This role exists in organizations that actually deliver. It's often informal —
 | Command | Description |
 | ------- | ----------- |
 | `dbt-conceptual init` | Create initial conceptual.yml |
-| `dbt-conceptual serve` | Start web UI server |
-| `dbt-conceptual status` | Show coverage status |
-| `dbt-conceptual validate` | Validate conceptual model |
-| `dbt-conceptual validate --no-drafts` | Fail if any draft/stub entities |
+| `dbt-conceptual status` | Show coverage status for all concepts |
+| `dbt-conceptual validate` | Validate conceptual model for CI |
+| `dbt-conceptual validate --format github` | Validate with GitHub Actions annotations |
 | `dbt-conceptual diff --base <ref>` | Compare conceptual model against git ref |
 | `dbt-conceptual diff --base main --format github` | Show changes in GitHub Actions format |
-| `dbt-conceptual sync` | Sync from dbt project |
-| `dbt-conceptual sync --create-stubs` | Create stubs for undefined references |
-| `dbt-conceptual export --format <fmt>` | Export diagram |
-| `dbt-conceptual list concepts` | List all concepts |
-| `dbt-conceptual list concepts --status draft` | List concepts by status |
-| `dbt-conceptual list relationships` | List all relationships |
+| `dbt-conceptual sync` | Discover dbt models and sync with conceptual model |
+| `dbt-conceptual sync --create-stubs` | Create stubs for undefined concept references |
+| `dbt-conceptual export --format excalidraw` | Export as Excalidraw diagram |
+| `dbt-conceptual export --format mermaid` | Export as Mermaid diagram |
+| `dbt-conceptual export --format coverage` | Export coverage report as HTML |
+| `dbt-conceptual export --format bus-matrix` | Export bus matrix (dimensions vs facts) |
+| `dbt-conceptual serve` | Launch interactive web UI for editing |
 
 ---
 
