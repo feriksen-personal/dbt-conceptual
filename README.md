@@ -367,6 +367,7 @@ vars:
 | ------- | ----------- |
 | `dbt-conceptual init` | Initialize conceptual.yml |
 | `dbt-conceptual status` | Show coverage by domain |
+| `dbt-conceptual orphans` | List untagged models (no meta.concept or meta.realizes) |
 | `dbt-conceptual validate` | Validate model integrity |
 | `dbt-conceptual validate --no-drafts` | Fail CI if drafts/stubs exist |
 | `dbt-conceptual sync` | Sync from dbt project |

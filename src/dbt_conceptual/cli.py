@@ -211,6 +211,77 @@ def _print_concept_status(concept_id: str, concept: ConceptState) -> None:
     multiple=True,
     help="Override gold layer paths",
 )
+def orphans(
+    project_dir: Optional[Path],
+    silver_paths: tuple[str, ...],
+    gold_paths: tuple[str, ...],
+) -> None:
+    """List models with no meta.concept or meta.realizes tags.
+
+    Shows models that need conceptual tagging. Useful for tracking
+    adoption and identifying where to focus next.
+    """
+    # Load configuration
+    config = Config.load(
+        project_dir=project_dir,
+        silver_paths=list(silver_paths) if silver_paths else None,
+        gold_paths=list(gold_paths) if gold_paths else None,
+    )
+
+    # Check if conceptual.yml exists
+    if not config.conceptual_file.exists():
+        console.print(
+            f"[red]Error: conceptual.yml not found at {config.conceptual_file}[/red]"
+        )
+        console.print("\nRun 'dbt-conceptual init' to create it.")
+        raise click.Abort()
+
+    # Build state
+    builder = StateBuilder(config)
+    state = builder.build()
+
+    # Display orphan models
+    if not state.orphan_models:
+        console.print("[green]✓ No orphan models found![/green]")
+        console.print(
+            "\nAll models have conceptual tags (meta.concept or meta.realizes)."
+        )
+        return
+
+    console.print(f"[bold]Orphan Models ({len(state.orphan_models)})[/bold]")
+    console.print("=" * 70)
+    console.print(
+        "[yellow]These models have no meta.concept or meta.realizes tags:[/yellow]\n"
+    )
+
+    for model in sorted(state.orphan_models, key=lambda m: m.name):
+        console.print(f"  • {model.name}")
+
+    console.print(
+        "\n[dim]Next steps:[/dim]"
+        "\n[dim]  1. Run 'dbt-conceptual sync --create-stubs' to create stub concepts[/dim]"
+        "\n[dim]  2. Edit models/conceptual/conceptual.yml to enrich the stubs[/dim]"
+        "\n[dim]  3. Add meta.concept or meta.realizes tags to model YAML files[/dim]"
+    )
+
+
+@main.command()
+@click.option(
+    "--project-dir",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    default=None,
+    help="Path to dbt project directory (default: current directory)",
+)
+@click.option(
+    "--silver-paths",
+    multiple=True,
+    help="Override silver layer paths",
+)
+@click.option(
+    "--gold-paths",
+    multiple=True,
+    help="Override gold layer paths",
+)
 @click.option(
     "--format",
     "output_format",
