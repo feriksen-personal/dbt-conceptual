@@ -758,10 +758,10 @@ def sync(project_dir: Optional[Path], create_stubs: bool, model: Optional[str]) 
 @click.option(
     "--format",
     type=click.Choice(
-        ["mermaid", "excalidraw", "png", "coverage", "bus-matrix"],
+        ["png", "coverage", "bus-matrix"],
         case_sensitive=False,
     ),
-    default="mermaid",
+    default="png",
     help="Export format",
 )
 @click.option(
@@ -774,9 +774,6 @@ def export(project_dir: Optional[Path], format: str, output: Optional[Path]) -> 
     """Export conceptual model to various formats.
 
     Examples:
-        dbt-conceptual export --format mermaid
-        dbt-conceptual export --format mermaid -o diagram.mmd
-        dbt-conceptual export --format excalidraw -o diagram.excalidraw
         dbt-conceptual export --format png -o diagram.png
         dbt-conceptual export --format coverage -o coverage.html
         dbt-conceptual export --format bus-matrix -o bus-matrix.html
@@ -784,8 +781,6 @@ def export(project_dir: Optional[Path], format: str, output: Optional[Path]) -> 
     from dbt_conceptual.exporter import (
         export_bus_matrix,
         export_coverage,
-        export_excalidraw,
-        export_mermaid,
         export_png,
     )
 
@@ -806,25 +801,7 @@ def export(project_dir: Optional[Path], format: str, output: Optional[Path]) -> 
     state = builder.build()
 
     # Export based on format
-    if format == "mermaid":
-        if output:
-            with open(output, "w") as f:
-                export_mermaid(state, f)
-            console.print(f"[green]✓ Exported to {output}[/green]")
-        else:
-            import sys
-
-            export_mermaid(state, sys.stdout)
-    elif format == "excalidraw":
-        if output:
-            with open(output, "w") as f:
-                export_excalidraw(state, f)
-            console.print(f"[green]✓ Exported to {output}[/green]")
-        else:
-            import sys
-
-            export_excalidraw(state, sys.stdout)
-    elif format == "coverage":
+    if format == "coverage":
         if output:
             with open(output, "w") as f:
                 export_coverage(state, f)

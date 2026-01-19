@@ -141,8 +141,8 @@ dbt-conceptual serve
 # Validate in CI
 dbt-conceptual validate
 
-# Export diagrams
-dbt-conceptual export --format excalidraw -o diagram.excalidraw
+# Export diagram
+dbt-conceptual export --format png -o diagram.png
 ```
 
 ---
@@ -324,20 +324,14 @@ dbt-conceptual sync --create-stubs
 ### 📤 Export Formats
 
 ```bash
-# Excalidraw — editable diagrams
-dbt-conceptual export --format excalidraw
-
-# PNG — static diagram image
+# PNG — visual canvas diagram
 dbt-conceptual export --format png -o diagram.png
 
-# Mermaid — for docs and GitHub
-dbt-conceptual export --format mermaid
-
 # Coverage report — HTML dashboard
-dbt-conceptual export --format coverage
+dbt-conceptual export --format coverage -o coverage.html
 
 # Bus matrix — dimensions vs facts
-dbt-conceptual export --format bus-matrix
+dbt-conceptual export --format bus-matrix -o bus-matrix.html
 ```
 
 <!-- ASSET: assets/bus-matrix.png — Kimball-style bus matrix showing dimensional coverage -->

@@ -1,231 +1,168 @@
-"""PNG diagram exporter for dbt-conceptual."""
+"""PNG diagram exporter for dbt-conceptual using Playwright."""
 
+import asyncio
+import tempfile
+from pathlib import Path
 from typing import BinaryIO
 
-from PIL import Image, ImageDraw, ImageFont
-
+from dbt_conceptual.config import Config
 from dbt_conceptual.state import ProjectState
 
 
 def export_png(state: ProjectState, output: BinaryIO) -> None:
-    """Export conceptual model as PNG diagram.
+    """Export conceptual model as PNG diagram by screenshotting the web UI canvas.
 
-    Creates a visual diagram with:
-    - Domain groupings (colored backgrounds)
-    - Concept boxes
-    - Relationship arrows
+    Uses Playwright to start a headless server, load the canvas view, and capture
+    a screenshot. This ensures the PNG export matches the visual style of the
+    interactive UI.
 
     Args:
         state: The conceptual model state
         output: Binary output stream for PNG file
+
+    Raises:
+        ImportError: If playwright is not installed
+        RuntimeError: If screenshot capture fails
     """
-
-    # Configuration
-    WIDTH = 1200
-    HEIGHT = 800
-    PADDING = 60
-    CONCEPT_WIDTH = 180
-    CONCEPT_HEIGHT = 80
-    FONT_SIZE_TITLE = 14
-    FONT_SIZE_TEXT = 12
-
-    # Colors
-    DOMAIN_COLORS = [
-        "#E3F2FD",  # Light blue
-        "#FFF3E0",  # Light orange
-        "#F3E5F5",  # Light purple
-        "#E8F5E9",  # Light green
-        "#FFF9C4",  # Light yellow
-        "#FFEBEE",  # Light red
-    ]
-    CONCEPT_COLOR = "#FFFFFF"
-    CONCEPT_BORDER = "#1976D2"
-    TEXT_COLOR = "#000000"
-    ARROW_COLOR = "#666666"
-
-    # Create image
-    img = Image.new("RGB", (WIDTH, HEIGHT), "white")
-    draw = ImageDraw.Draw(img)
-
-    # Try to load fonts
     try:
-        font_title = ImageFont.truetype("Arial.ttf", FONT_SIZE_TITLE)
-        font_text = ImageFont.truetype("Arial.ttf", FONT_SIZE_TEXT)
-    except Exception:
-        try:
-            font_title = ImageFont.truetype(
-                "/System/Library/Fonts/Helvetica.ttc", FONT_SIZE_TITLE
-            )
-            font_text = ImageFont.truetype(
-                "/System/Library/Fonts/Helvetica.ttc", FONT_SIZE_TEXT
-            )
-        except Exception:
-            # Fallback to default font
-            font_title = ImageFont.load_default()  # type: ignore[assignment]
-            font_text = ImageFont.load_default()  # type: ignore[assignment]
+        import playwright  # noqa: F401
+    except ImportError as err:
+        raise ImportError(
+            "PNG export requires Playwright for headless browser automation.\n"
+            "Install with: pip install playwright && playwright install chromium"
+        ) from err
 
-    # Group concepts by domain
-    domains_with_concepts: dict[str, list[str]] = {}
-    for concept_id, concept in state.concepts.items():
-        domain = concept.domain or "default"
-        if domain not in domains_with_concepts:
-            domains_with_concepts[domain] = []
-        domains_with_concepts[domain].append(concept_id)
+    # Run async screenshot in sync context
+    png_data = asyncio.run(_capture_canvas_screenshot(state))
+    output.write(png_data)
 
-    # Calculate layout
-    num_domains = len(domains_with_concepts)
-    domain_width = (WIDTH - 2 * PADDING) // max(num_domains, 1)
-    concept_positions: dict[str, tuple[int, int]] = {}
 
-    # Draw domains and concepts
-    for idx, (domain_id, concept_ids) in enumerate(domains_with_concepts.items()):
-        # Domain background
-        domain_x = PADDING + idx * domain_width
-        domain_color = DOMAIN_COLORS[idx % len(DOMAIN_COLORS)]
+async def _capture_canvas_screenshot(state: ProjectState) -> bytes:
+    """Capture screenshot of canvas using Playwright.
 
-        # Convert hex to RGB
-        r = int(domain_color[1:3], 16)
-        g = int(domain_color[3:5], 16)
-        b = int(domain_color[5:7], 16)
+    Args:
+        state: The conceptual model state
 
-        draw.rectangle(
-            [
-                domain_x,
-                PADDING,
-                domain_x + domain_width - 10,
-                HEIGHT - PADDING,
-            ],
-            fill=(r, g, b),
-            outline=None,
+    Returns:
+        PNG image bytes
+    """
+    import threading
+    import time
+
+    from playwright.async_api import async_playwright
+
+    # Create temporary conceptual.yml file
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+        models_dir = tmpdir_path / "models" / "conceptual"
+        models_dir.mkdir(parents=True)
+
+        # Write conceptual.yml
+        conceptual_file = models_dir / "conceptual.yml"
+        _write_state_to_yaml(state, conceptual_file)
+
+        # Create minimal dbt_project.yml
+        dbt_project = tmpdir_path / "dbt_project.yml"
+        dbt_project.write_text(
+            "name: temp_export\n"
+            "version: 1.0.0\n"
+            "config-version: 2\n"
+            "model-paths: ['models']\n"
         )
 
-        # Domain label
-        domain_obj = state.domains.get(domain_id)
-        domain_name = domain_obj.display_name if domain_obj else domain_id
-        draw.text(
-            (domain_x + 10, PADDING + 10),
-            domain_name,
-            fill=TEXT_COLOR,
-            font=font_title,
+        # Start Flask server in background thread
+        from dbt_conceptual.server import create_app
+
+        config = Config.load(project_dir=tmpdir_path)
+        app = create_app(tmpdir_path)
+
+        server_thread = threading.Thread(
+            target=lambda: app.run(host="127.0.0.1", port=5555, debug=False),
+            daemon=True,
         )
+        server_thread.start()
 
-        # Draw concepts in this domain
-        for cidx, concept_id in enumerate(concept_ids):
-            # Position concept
-            concept_x = domain_x + 20
-            concept_y = PADDING + 50 + cidx * (CONCEPT_HEIGHT + 20)
+        # Wait for server to start
+        time.sleep(2)
 
-            concept_positions[concept_id] = (
-                concept_x + CONCEPT_WIDTH // 2,
-                concept_y + CONCEPT_HEIGHT // 2,
-            )
+        # Capture screenshot with Playwright
+        async with async_playwright() as p:
+            browser = await p.chromium.launch()
+            page = await browser.new_page(viewport={"width": 1400, "height": 900})
 
-            # Draw concept box
-            draw.rectangle(
-                [
-                    concept_x,
-                    concept_y,
-                    concept_x + CONCEPT_WIDTH,
-                    concept_y + CONCEPT_HEIGHT,
-                ],
-                fill=CONCEPT_COLOR,
-                outline=CONCEPT_BORDER,
-                width=2,
-            )
+            # Load canvas view
+            await page.goto("http://127.0.0.1:5555/")
 
-            # Concept name
-            concept = state.concepts[concept_id]
-            concept_name = concept.name or concept_id
-            draw.text(
-                (concept_x + 10, concept_y + 10),
-                concept_name,
-                fill=TEXT_COLOR,
-                font=font_title,
-            )
+            # Wait for canvas to render
+            await page.wait_for_selector("canvas", timeout=10000)
+            await page.wait_for_timeout(1000)  # Additional time for layout
 
-            # Status indicator
-            status_text = f"[{concept.status}]" if concept.status else ""
-            draw.text(
-                (concept_x + 10, concept_y + 30),
-                status_text,
-                fill=ARROW_COLOR,
-                font=font_text,
-            )
+            # Take screenshot of canvas element
+            canvas = await page.query_selector("canvas")
+            if canvas:
+                screenshot_bytes = await canvas.screenshot(omit_background=False)
+            else:
+                # Fallback: screenshot entire viewport
+                screenshot_bytes = await page.screenshot(full_page=False)
 
-            # Coverage indicators
-            s_count = len(concept.silver_models or [])
-            g_count = len(concept.gold_models or [])
-            coverage = f"S:{s_count} G:{g_count}"
-            draw.text(
-                (concept_x + 10, concept_y + 50),
-                coverage,
-                fill=ARROW_COLOR,
-                font=font_text,
-            )
+            await browser.close()
 
-    # Draw relationships as arrows
-    for rel_id, rel in state.relationships.items():
-        from_pos = concept_positions.get(rel.from_concept)
-        to_pos = concept_positions.get(rel.to_concept)
+            return screenshot_bytes
 
-        if from_pos and to_pos:
-            # Draw arrow line
-            draw.line(
-                [from_pos, to_pos],
-                fill=ARROW_COLOR,
-                width=2,
-            )
 
-            # Draw arrowhead (simple triangle)
-            dx = to_pos[0] - from_pos[0]
-            dy = to_pos[1] - from_pos[1]
-            length = (dx * dx + dy * dy) ** 0.5
-            if length > 0:
-                # Normalize
-                dx /= length
-                dy /= length
+def _write_state_to_yaml(state: ProjectState, output_path: Path) -> None:
+    """Write ProjectState back to YAML format.
 
-                # Arrow tip at 80% of line
-                arrow_x = from_pos[0] + dx * length * 0.8
-                arrow_y = from_pos[1] + dy * length * 0.8
+    Args:
+        state: The project state to write
+        output_path: Path to write YAML file
+    """
+    import yaml
 
-                # Perpendicular for arrow wings
-                perp_x = -dy * 8
-                perp_y = dx * 8
+    data: dict = {"version": 1}
 
-                arrow_points = [
-                    (arrow_x + perp_x, arrow_y + perp_y),
-                    (arrow_x + dx * 15, arrow_y + dy * 15),
-                    (arrow_x - perp_x, arrow_y - perp_y),
-                ]
+    # Write domains
+    if state.domains:
+        data["domains"] = {}
+        for domain_id, domain in state.domains.items():
+            data["domains"][domain_id] = {
+                "name": domain.display_name,
+            }
 
-                draw.polygon(arrow_points, fill=ARROW_COLOR)
+    # Write concepts
+    if state.concepts:
+        data["concepts"] = {}
+        for concept_id, concept in state.concepts.items():
+            concept_data: dict = {
+                "name": concept.name,
+            }
+            if concept.domain:
+                concept_data["domain"] = concept.domain
+            if concept.owner:
+                concept_data["owner"] = concept.owner
+            if concept.definition:
+                concept_data["definition"] = concept.definition
+            if concept.status and concept.status != "complete":
+                concept_data["status"] = concept.status
 
-            # Draw relationship label
-            mid_x = (from_pos[0] + to_pos[0]) // 2
-            mid_y = (from_pos[1] + to_pos[1]) // 2
-            label = rel.name or rel_id
+            data["concepts"][concept_id] = concept_data
 
-            # Draw label background
-            bbox = draw.textbbox((mid_x, mid_y), label, font=font_text)
-            draw.rectangle(bbox, fill=CONCEPT_COLOR)
+    # Write relationships
+    if state.relationships:
+        data["relationships"] = []
+        for _rel_id, rel in state.relationships.items():
+            rel_data: dict = {
+                "name": rel.name,
+                "from": rel.from_concept,
+                "to": rel.to_concept,
+            }
+            if rel.cardinality:
+                rel_data["cardinality"] = rel.cardinality
+            if rel.definition:
+                rel_data["definition"] = rel.definition
+            if rel.status and rel.status != "complete":
+                rel_data["status"] = rel.status
 
-            draw.text(
-                (mid_x, mid_y),
-                label,
-                fill=TEXT_COLOR,
-                font=font_text,
-                anchor="mm",
-            )
+            data["relationships"].append(rel_data)
 
-    # Add title
-    draw.text(
-        (WIDTH // 2, 20),
-        "Conceptual Model Diagram",
-        fill=TEXT_COLOR,
-        font=font_title,
-        anchor="mm",
-    )
-
-    # Save to output
-    img.save(output, format="PNG")
+    output_path.write_text(yaml.dump(data, default_flow_style=False, sort_keys=False))
