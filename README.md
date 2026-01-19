@@ -240,22 +240,8 @@ dbt-conceptual serve
 
 See which concepts are implemented at each layer:
 
-```text
-$ dbt-conceptual status
-
-Concepts by Domain
-==================
-
-party (1 concept)
-  ✓ customer [complete]     [S:●●] [G:●]
-
-transaction (2 concepts)
-  ✓ order [complete]        [S:●]  [G:●]
-  ⚠ shipment [stub]         [S:○]  [G:○]
-
-catalog (1 concept)
-  ✓ product [complete]      [S:●]  [G:●]
-```
+<!-- ASSET: assets/coverage-status.png — Terminal-style coverage report showing domains and status -->
+![Coverage status](assets/coverage-status.png)
 
 **Status logic:**
 

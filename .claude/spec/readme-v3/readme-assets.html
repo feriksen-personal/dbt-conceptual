@@ -963,5 +963,83 @@
         </div>
     </div>
 
+    <!-- ============================================
+         ASSET 5: Coverage Status Output
+         Save as: assets/coverage-status.png
+         Recommended dimensions: ~600x350px
+         Shows: Terminal-style coverage report
+         ============================================ -->
+    <div class="asset-section">
+        <div class="asset-label">Asset 5</div>
+        <div class="asset-filename">assets/coverage-status.png (600×350)</div>
+        <div class="asset-container">
+            <div style="
+                background: #1e1e1e;
+                color: #d4d4d4;
+                font-family: 'JetBrains Mono', monospace;
+                font-size: 13px;
+                padding: 24px 32px;
+                border-radius: 12px;
+                line-height: 1.6;
+                min-width: 550px;
+            ">
+                <div style="color: #888; margin-bottom: 4px;">$ dbt-conceptual status</div>
+                <div style="margin-bottom: 16px;"></div>
+                <div style="color: #fff; font-weight: 600; margin-bottom: 12px;">Concepts by Domain</div>
+                <div style="color: #666; margin-bottom: 16px;">══════════════════</div>
+                
+                <!-- Party domain -->
+                <div style="color: #81a1c1; margin-bottom: 8px;">party <span style="color: #666;">(1 concept)</span></div>
+                <div style="margin-left: 16px; margin-bottom: 12px;">
+                    <span style="color: #a3be8c;">✓</span>
+                    <span style="color: #d4d4d4;"> customer</span>
+                    <span style="color: #666;"> [complete]</span>
+                    <span style="margin-left: 24px;">
+                        <span style="color: #888;">[S:</span><span style="color: #a3be8c;">●●</span><span style="color: #888;">]</span>
+                        <span style="color: #888;">[G:</span><span style="color: #a3be8c;">●</span><span style="color: #888;">]</span>
+                    </span>
+                </div>
+                
+                <!-- Transaction domain -->
+                <div style="color: #81a1c1; margin-bottom: 8px;">transaction <span style="color: #666;">(2 concepts)</span></div>
+                <div style="margin-left: 16px; margin-bottom: 4px;">
+                    <span style="color: #a3be8c;">✓</span>
+                    <span style="color: #d4d4d4;"> order</span>
+                    <span style="color: #666;"> [complete]</span>
+                    <span style="margin-left: 36px;">
+                        <span style="color: #888;">[S:</span><span style="color: #a3be8c;">●</span><span style="color: #888;">]</span>
+                        <span style="color: #888;"> [G:</span><span style="color: #a3be8c;">●</span><span style="color: #888;">]</span>
+                    </span>
+                </div>
+                <div style="margin-left: 16px; margin-bottom: 12px;">
+                    <span style="color: #ebcb8b;">⚠</span>
+                    <span style="color: #d4d4d4;"> shipment</span>
+                    <span style="color: #ebcb8b;"> [stub]</span>
+                    <span style="margin-left: 32px;">
+                        <span style="color: #888;">[S:</span><span style="color: #666;">○</span><span style="color: #888;">]</span>
+                        <span style="color: #888;"> [G:</span><span style="color: #666;">○</span><span style="color: #888;">]</span>
+                    </span>
+                </div>
+                
+                <!-- Catalog domain -->
+                <div style="color: #81a1c1; margin-bottom: 8px;">catalog <span style="color: #666;">(1 concept)</span></div>
+                <div style="margin-left: 16px; margin-bottom: 16px;">
+                    <span style="color: #a3be8c;">✓</span>
+                    <span style="color: #d4d4d4;"> product</span>
+                    <span style="color: #666;"> [complete]</span>
+                    <span style="margin-left: 28px;">
+                        <span style="color: #888;">[S:</span><span style="color: #a3be8c;">●</span><span style="color: #888;">]</span>
+                        <span style="color: #888;"> [G:</span><span style="color: #a3be8c;">●</span><span style="color: #888;">]</span>
+                    </span>
+                </div>
+                
+                <!-- Summary -->
+                <div style="border-top: 1px solid #444; padding-top: 12px; margin-top: 8px; color: #888;">
+                    Coverage: <span style="color: #a3be8c;">3/4 complete</span> · <span style="color: #ebcb8b;">1 stub</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>

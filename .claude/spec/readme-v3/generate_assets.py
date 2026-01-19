@@ -55,12 +55,24 @@ async def generate_assets():
             omit_background=False
         )
 
+        # Asset 5: Coverage Status (600x350)
+        print("Generating coverage-status.png...")
+        # Get the last asset section (coverage status)
+        asset_sections = await page.query_selector_all(".asset-section")
+        coverage_section = asset_sections[-1]
+        coverage_container = await coverage_section.query_selector(".asset-container > div")
+        await coverage_container.screenshot(
+            path=str(assets_dir / "coverage-status.png"),
+            omit_background=False
+        )
+
         await browser.close()
 
     print(f"\nAssets generated in: {assets_dir}")
     print("- logo-banner-dark.png")
     print("- canvas-example.png")
     print("- ui-screenshot.png")
+    print("- coverage-status.png")
 
 
 if __name__ == "__main__":

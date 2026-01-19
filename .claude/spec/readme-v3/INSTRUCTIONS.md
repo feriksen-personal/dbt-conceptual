@@ -19,6 +19,7 @@ Open `readme-assets.html` in a browser. This file contains four render targets.
 | 2 | `assets/logo-banner-light.png` | 800×140 | Logo + wordmark + tagline on light background (backup) |
 | 3 | `assets/canvas-example.png` | 900×400 | Canvas showing concepts with relationships, complete/draft/stub states |
 | 4 | `assets/ui-screenshot.png` | 1100×600 | Full app UI with canvas, selected concept, and property panel |
+| 5 | `assets/coverage-status.png` | 600×350 | Terminal-style coverage report showing domains and status |
 
 ### Steps
 
@@ -210,6 +211,7 @@ Before committing, verify:
 - [ ] `assets/logo-banner-dark.png` exists and displays correctly
 - [ ] `assets/canvas-example.png` exists and displays correctly
 - [ ] `assets/ui-screenshot.png` exists and displays correctly
+- [ ] `assets/coverage-status.png` exists and displays correctly
 - [ ] No `[![Downloads]` badge
 - [ ] Python badge shows `≥3.11` not all versions
 - [ ] CLI Reference has accurate commands (no `list` commands)
