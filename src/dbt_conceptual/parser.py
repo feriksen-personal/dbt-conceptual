@@ -72,7 +72,9 @@ class ConceptualModelParser:
         # Parse relationships
         if "relationships" in data:
             for rel in data["relationships"]:
-                verb = rel.get("verb", rel.get("name", "relates_to"))  # Support both new and old format
+                verb = rel.get(
+                    "verb", rel.get("name", "relates_to")
+                )  # Support both new and old format
                 from_concept = rel["from"]
                 to_concept = rel["to"]
 

@@ -24,9 +24,15 @@ class ConceptState:
     replaced_by: Optional[str] = None  # Deprecation tracking
 
     # Derived fields (populated at runtime, not stored in YAML)
-    bronze_models: list[str] = field(default_factory=list)  # Inferred from manifest.json
-    silver_models: list[str] = field(default_factory=list)  # From meta.concept in silver paths
-    gold_models: list[str] = field(default_factory=list)  # From meta.concept in gold paths
+    bronze_models: list[str] = field(
+        default_factory=list
+    )  # Inferred from manifest.json
+    silver_models: list[str] = field(
+        default_factory=list
+    )  # From meta.concept in silver paths
+    gold_models: list[str] = field(
+        default_factory=list
+    )  # From meta.concept in gold paths
 
     @property
     def status(self) -> Literal["stub", "draft", "complete", "deprecated"]:
@@ -124,7 +130,9 @@ class ProjectState:
 
     concepts: dict[str, ConceptState] = field(default_factory=dict)
     relationships: dict[str, RelationshipState] = field(default_factory=dict)
-    groups: dict[str, list[str]] = field(default_factory=dict)  # Extension: relationship groups
+    groups: dict[str, list[str]] = field(
+        default_factory=dict
+    )  # Extension: relationship groups
     domains: dict[str, DomainState] = field(default_factory=dict)
     orphan_models: list[OrphanModel] = field(default_factory=list)
     metadata: dict[str, str] = field(default_factory=dict)

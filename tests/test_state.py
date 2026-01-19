@@ -35,11 +35,15 @@ def test_concept_status_derivation() -> None:
     assert draft.status == "draft"
 
     # Complete: has domain and at least one model
-    complete = ConceptState(name="Complete", domain="party", gold_models=["dim_complete"])
+    complete = ConceptState(
+        name="Complete", domain="party", gold_models=["dim_complete"]
+    )
     assert complete.status == "complete"
 
     # Deprecated: replaced_by is set
-    deprecated = ConceptState(name="Old", domain="party", replaced_by="new", gold_models=["dim_old"])
+    deprecated = ConceptState(
+        name="Old", domain="party", replaced_by="new", gold_models=["dim_old"]
+    )
     assert deprecated.status == "deprecated"
 
 
