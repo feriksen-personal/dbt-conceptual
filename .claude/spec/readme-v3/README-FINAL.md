@@ -285,10 +285,11 @@ ERROR: fact_returns realizes 'customer:returns:order'
 ```yaml
 # .github/workflows/ci.yml
 - name: Validate conceptual model
-  run: dbt-conceptual validate --no-drafts
+  run: |
+    dbt-conceptual validate --no-drafts --format markdown >> $GITHUB_STEP_SUMMARY
 ```
 
-The `--no-drafts` flag fails if any concepts or relationships are incomplete — useful for enforcing coverage standards.
+The `--no-drafts` flag fails if any concepts or relationships are incomplete — useful for enforcing coverage standards. Use `--format markdown` to show validation results as a formatted job summary.
 
 ### 🔀 Pull Request Integration
 
@@ -308,6 +309,19 @@ dbt-conceptual diff --base main
 ```
 
 Surface conceptual changes in PR reviews. Know when someone adds a new business concept or modifies an existing definition.
+
+**GitHub Actions job summaries:**
+
+Use `--format markdown` to create rich visual summaries in GitHub Actions:
+
+```yaml
+# .github/workflows/conceptual-diff.yml
+- name: Show conceptual changes
+  run: |
+    dbt-conceptual diff --base main --format markdown >> $GITHUB_STEP_SUMMARY
+```
+
+The output renders as formatted tables with emoji indicators in the Actions UI.
 
 ### 🔄 Bi-Directional Sync
 
