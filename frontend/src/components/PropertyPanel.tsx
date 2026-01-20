@@ -14,27 +14,36 @@ export function PropertyPanel() {
     return (
       <div className="property-panel">
         <div className="property-panel-empty">
-          <div className="property-panel-empty-icon">◇</div>
+          <div className="property-panel-empty-icon">{'\u25C7'}</div>
           <div className="property-panel-empty-text">Select a concept or relationship to view details</div>
         </div>
       </div>
     );
   }
 
+  // Determine if we're showing a ghost concept
+  const isGhostConcept = selectedConcept?.isGhost;
+
+  // Determine the title to show
+  let panelTitle = '';
+  if (selectedConcept) {
+    panelTitle = isGhostConcept ? 'Ghost Concept' : selectedConcept.name;
+  } else if (selectedRelationship) {
+    panelTitle = 'Relationship';
+  }
+
   return (
     <div className="property-panel">
       {/* Header */}
       <div className="property-panel-header">
-        <div className="property-panel-title">
-          {selectedConcept ? selectedConcept.name : selectedRelationship?.name}
-        </div>
+        <div className="property-panel-title">{panelTitle}</div>
         <button className="property-panel-close" onClick={clearSelection} title="Close panel">
-          ×
+          {'\u00D7'}
         </button>
       </div>
 
-      {/* Tabs (only for concepts) */}
-      {selectedConcept && (
+      {/* Tabs (only for non-ghost concepts) */}
+      {selectedConcept && !isGhostConcept && (
         <div className="property-panel-tabs">
           <button
             className={`property-panel-tab ${activeTab === 'properties' ? 'active' : ''}`}
@@ -56,7 +65,7 @@ export function PropertyPanel() {
         {selectedConcept && activeTab === 'properties' && (
           <PropertiesTab conceptId={selectedConceptId!} />
         )}
-        {selectedConcept && activeTab === 'models' && (
+        {selectedConcept && !isGhostConcept && activeTab === 'models' && (
           <ModelsTab conceptId={selectedConceptId!} />
         )}
         {selectedRelationship && (

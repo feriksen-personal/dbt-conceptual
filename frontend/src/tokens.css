@@ -22,6 +22,19 @@
   --status-stub-light: #fef3e0;
   --status-deprecated: #ef4444;
 
+  /* === Validation Colors === */
+  --status-error: #dc2626;
+  --status-error-light: #fef2f2;
+  --status-warning: #d97706;
+  --status-warning-light: #fffbeb;
+  --status-info: #2563eb;
+  --status-info-light: #eff6ff;
+
+  /* === Ghost Concept Colors === */
+  --ghost-bg: #f3f4f6;
+  --ghost-border: #9ca3af;
+  --ghost-text: #6b7280;
+
   /* === Layer Colors === */
   --layer-gold-bg: #fef3c7;
   --layer-gold-text: #b45309;
@@ -973,4 +986,317 @@ code, pre {
 .toolbar-btn:hover {
   background: var(--bg-surface-alt);
   color: var(--text-primary);
+}
+
+/* === Messages Panel === */
+.messages-bar {
+  width: 44px;
+  background: var(--bg-surface-alt);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-4) 0;
+  gap: var(--space-2);
+}
+
+.messages-bar-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.messages-bar-count {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  margin-top: var(--space-2);
+}
+
+.messages-bar-count.muted {
+  color: var(--text-muted);
+}
+
+.messages-bar-badge {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: white;
+  margin-top: var(--space-2);
+}
+
+.messages-bar-badge.error {
+  background: var(--status-error);
+}
+
+.messages-bar-badge.warning {
+  background: var(--status-warning);
+}
+
+.messages-panel {
+  width: 320px;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.messages-panel-header {
+  padding: var(--space-4) var(--space-5);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+
+.messages-panel-header h3 {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.messages-panel-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.messages-filters {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface-alt);
+}
+
+.filter-toggle {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-muted);
+  transition: all 0.12s ease;
+}
+
+.filter-toggle:hover {
+  border-color: var(--border-input);
+}
+
+.filter-toggle.selected.error {
+  background: var(--status-error-light);
+  border-color: var(--status-error);
+  color: var(--status-error);
+}
+
+.filter-toggle.selected.warning {
+  background: var(--status-warning-light);
+  border-color: var(--status-warning);
+  color: var(--status-warning);
+}
+
+.filter-toggle.selected.info {
+  background: var(--status-info-light);
+  border-color: var(--status-info);
+  color: var(--status-info);
+}
+
+.filter-toggle.unselected {
+  opacity: 0.6;
+}
+
+.filter-toggle-icon {
+  font-size: var(--font-size-xs);
+}
+
+.filter-toggle-count {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+}
+
+.messages-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.message-item {
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.message-item:hover {
+  background: var(--bg-surface-alt);
+}
+
+.message-icon {
+  font-size: var(--font-size-sm);
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.message-icon.error {
+  color: var(--status-error);
+}
+
+.message-icon.warning {
+  color: var(--status-warning);
+}
+
+.message-icon.info {
+  color: var(--status-info);
+}
+
+.message-text {
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+  line-height: 1.45;
+}
+
+.message-text .highlight {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  background: var(--bg-surface-alt);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+.icon-btn {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  transition: all 0.12s ease;
+}
+
+.icon-btn:hover {
+  background: var(--bg-surface-alt);
+  border-color: var(--border-input);
+  color: var(--text-secondary);
+}
+
+/* === Ghost Concept Node === */
+.concept-node.ghost {
+  background: var(--ghost-bg);
+  border: 2px dashed var(--ghost-border);
+  border-left-width: 2px;
+  opacity: 0.85;
+}
+
+.concept-node.ghost .concept-node-name {
+  color: var(--ghost-text);
+}
+
+.concept-node.ghost .concept-node-domain {
+  color: var(--ghost-border);
+  font-style: italic;
+}
+
+.ghost-icon {
+  font-size: var(--font-size-sm);
+  color: var(--ghost-border);
+  margin-right: var(--space-1);
+}
+
+/* === Validation Badge === */
+.validation-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  z-index: 10;
+}
+
+.validation-badge.error {
+  background: var(--status-error);
+}
+
+.validation-badge.warning {
+  background: var(--status-warning);
+}
+
+/* === Concept Node Error/Warning States === */
+.concept-node.error {
+  border-color: var(--status-error);
+}
+
+.concept-node.warning {
+  border-color: var(--status-warning);
+}
+
+/* === Invalid Relationship Edge === */
+.react-flow__edge.invalid path {
+  stroke: var(--status-error);
+  stroke-dasharray: 5 5;
+}
+
+.relationship-edge-label.invalid {
+  border-color: var(--status-error);
+}
+
+.relationship-edge-label.invalid .relationship-edge-verb {
+  color: var(--status-error);
+}
+
+/* === Property Panel Status Indicator === */
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  background: var(--status-error-light);
+  border: 1px solid var(--status-error);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--status-error);
+  margin-bottom: var(--space-6);
+}
+
+.status-indicator.warning {
+  background: var(--status-warning-light);
+  border-color: var(--status-warning);
+  color: var(--status-warning);
+}
+
+.property-input.error {
+  border-color: var(--status-error);
+  color: var(--status-error);
+}
+
+.property-input.ghost-field {
+  background: var(--ghost-bg);
+  border-color: var(--ghost-border);
+  color: var(--ghost-text);
 }

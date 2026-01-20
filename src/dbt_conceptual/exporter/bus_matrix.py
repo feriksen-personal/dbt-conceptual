@@ -41,7 +41,8 @@ def export_bus_matrix(state: ProjectState, output: TextIO) -> None:
         len(rel.realized_by) for rel in state.relationships.values() if rel.realized_by
     )
 
-    output.write("""<!DOCTYPE html>
+    output.write(
+        """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -252,27 +253,35 @@ def export_bus_matrix(state: ProjectState, output: TextIO) -> None:
         <div class="stats">
             <div class="stat">
                 <div class="stat-label">Total Facts</div>
-                <div class="stat-value">""")
+                <div class="stat-value">"""
+    )
     output.write(str(total_facts))
-    output.write("""</div>
+    output.write(
+        """</div>
             </div>
             <div class="stat">
                 <div class="stat-label">Total Relationships</div>
-                <div class="stat-value">""")
+                <div class="stat-value">"""
+    )
     output.write(str(total_relationships))
-    output.write("""</div>
+    output.write(
+        """</div>
             </div>
             <div class="stat">
                 <div class="stat-label">Realizations</div>
-                <div class="stat-value">""")
+                <div class="stat-value">"""
+    )
     output.write(str(total_realizations))
-    output.write("""</div>
+    output.write(
+        """</div>
             </div>
         </div>
-""")
+"""
+    )
 
     if not fact_tables_list:
-        output.write("""
+        output.write(
+            """
         <div class="empty-state">
             <div class="empty-state-icon">📊</div>
             <p>No fact tables found</p>
@@ -280,9 +289,11 @@ def export_bus_matrix(state: ProjectState, output: TextIO) -> None:
                 Add meta.realizes tags to your fact tables to populate the bus matrix
             </p>
         </div>
-""")
+"""
+        )
     else:
-        output.write("""
+        output.write(
+            """
         <div class="legend">
             <div class="legend-item">
                 <span class="legend-symbol"></span>
@@ -295,7 +306,8 @@ def export_bus_matrix(state: ProjectState, output: TextIO) -> None:
                 <thead>
                     <tr>
                         <th>Fact Table</th>
-""")
+"""
+        )
 
         # Write relationship headers
         for _rel_id, rel in relationships_list:
@@ -305,15 +317,19 @@ def export_bus_matrix(state: ProjectState, output: TextIO) -> None:
 """
             )
 
-        output.write("""                    </tr>
+        output.write(
+            """                    </tr>
                 </thead>
                 <tbody>
-""")
+"""
+        )
 
         # Write fact rows
         for fact in fact_tables_list:
-            output.write("""                    <tr>
-                        <td class="fact-name">""")
+            output.write(
+                """                    <tr>
+                        <td class="fact-name">"""
+            )
             output.write(fact)
             output.write("</td>\n")
 
@@ -324,18 +340,26 @@ def export_bus_matrix(state: ProjectState, output: TextIO) -> None:
 """
                     )
                 else:
-                    output.write("""                        <td></td>
-""")
+                    output.write(
+                        """                        <td></td>
+"""
+                    )
 
-            output.write("""                    </tr>
-""")
+            output.write(
+                """                    </tr>
+"""
+            )
 
-        output.write("""                </tbody>
+        output.write(
+            """                </tbody>
             </table>
         </div>
-""")
+"""
+        )
 
-    output.write("""    </div>
+    output.write(
+        """    </div>
 </body>
 </html>
-""")
+"""
+    )

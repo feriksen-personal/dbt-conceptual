@@ -21,23 +21,30 @@ export const RelationshipEdge = memo((props: any) => {
     targetPosition: props.targetPosition,
   });
 
-  // Status color
+  // Check if this edge is invalid (has validation errors)
+  const isInvalid = relationship.validationStatus === 'error';
+
+  // Status color - use error color if invalid, otherwise use status color
   const statusColorMap: Record<RelationshipStatus, string> = {
     complete: 'var(--status-complete)',
     draft: 'var(--status-draft)',
     stub: 'var(--status-stub)',
   };
-  const statusColor = statusColorMap[relationship.status];
+  const statusColor = isInvalid ? 'var(--status-error)' : statusColorMap[relationship.status];
 
-  // Edge stroke style based on status
-  const strokeDasharray = relationship.status === 'stub' ? '5,5' : undefined;
+  // Edge stroke style based on status or validation
+  const strokeDasharray = isInvalid || relationship.status === 'stub' ? '5,5' : undefined;
+
+  // Label classes
+  const labelClasses = ['relationship-edge-label'];
+  if (isInvalid) labelClasses.push('invalid');
 
   return (
     <>
       {/* Edge path */}
       <path
         id={props.id}
-        className="react-flow__edge-path"
+        className={`react-flow__edge-path ${isInvalid ? 'invalid' : ''}`}
         d={edgePath}
         stroke={statusColor}
         strokeWidth={2}
@@ -55,7 +62,7 @@ export const RelationshipEdge = memo((props: any) => {
           y={-30}
           className="edge-label-wrapper"
         >
-          <div className="relationship-edge-label">
+          <div className={labelClasses.join(' ')}>
             {/* Verb */}
             <div className="relationship-edge-verb">{relationship.verb}</div>
 
@@ -66,8 +73,8 @@ export const RelationshipEdge = memo((props: any) => {
               </div>
             )}
 
-            {/* Model count badge */}
-            {relationship.realized_by.length > 0 && (
+            {/* Model count badge (not shown for invalid edges) */}
+            {!isInvalid && relationship.realized_by.length > 0 && (
               <div
                 className="relationship-edge-models"
                 style={{ backgroundColor: statusColor }}
