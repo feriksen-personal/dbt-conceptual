@@ -1,7 +1,7 @@
 # dbt-conceptual
 
-<!-- ASSET: assets/logo-banner-dark.png — Full-width banner with logo + tagline -->
-![dbt-conceptual](assets/logo-banner-dark.png)
+<!-- ASSET: assets/logo-banner-light.png — Full-width banner with logo + tagline -->
+![dbt-conceptual](assets/logo-banner-light.png)
 
 > **The whiteboard sketch that doesn't get erased.**
 
