@@ -4,58 +4,33 @@ This folder contains example exports from `dbt-conceptual` in all supported form
 
 ## Files
 
-### 1. **example.mmd** (Mermaid)
-- **Format**: Text-based diagram syntax
-- **Use case**: Embed in Markdown files, GitHub README, documentation
-- **Viewable**: GitHub renders Mermaid diagrams natively in markdown
-- **Editable**: Yes, plain text
-
-```mermaid
-erDiagram
-    CUSTOMER ||--o{ ORDER : places
-    ORDER }o--o{ PRODUCT : contains
-```
-
-### 2. **example.excalidraw** (Excalidraw)
-- **Format**: JSON diagram definition
-- **Use case**: Editable whiteboard-style diagrams
-- **Viewable**: Open at https://excalidraw.com (File → Open)
-- **Editable**: Yes, full visual editing
-- **Features**: Hand-drawn style, annotations, collaboration
-
-### 3. **example.png** (PNG Image)
-- **Format**: Static raster image (1200×800)
-- **Use case**: Presentations, documentation, Slack/email
+### 1. **example.png** (PNG Image)
+- **Format**: Static raster image (captured from web UI canvas)
+- **Use case**: Presentations, documentation, Slack/email, anywhere you need a visual diagram
 - **Viewable**: Any image viewer
 - **Editable**: No
-- **Features**: Clean layout with domain groupings, concept boxes, relationship arrows
+- **Features**: Professional layout matching the interactive UI exactly - domain groupings, concept boxes, relationship arrows, status indicators
 
-### 4. **coverage.html** (Coverage Dashboard)
+### 2. **coverage.html** (Coverage Dashboard)
 - **Format**: Self-contained HTML dashboard
 - **Use case**: View implementation coverage by domain and layer
 - **Viewable**: Open in web browser
 - **Editable**: No
-- **Features**: Shows which concepts have implementing models in Silver/Gold layers
+- **Features**: Shows which concepts have implementing models in Silver/Gold layers, tracks completeness
 
-### 5. **bus-matrix.html** (Kimball Bus Matrix)
+### 3. **bus-matrix.html** (Kimball Bus Matrix)
 - **Format**: Self-contained HTML matrix
 - **Use case**: Dimensional modeling conformity analysis
 - **Viewable**: Open in web browser
 - **Editable**: No
-- **Features**: Shows which dimensions are used by which facts (Kimball methodology)
+- **Features**: Shows which dimensions are used by which facts (Kimball methodology), validates conformed dimensions
 
 ## How These Were Generated
 
 All exports were generated from the sample conceptual model in `.claude/sample-project/`:
 
 ```bash
-# Mermaid
-dbt-conceptual export --format mermaid -o example.mmd
-
-# Excalidraw
-dbt-conceptual export --format excalidraw -o example.excalidraw
-
-# PNG
+# PNG (screenshots the web UI canvas)
 dbt-conceptual export --format png -o example.png
 
 # Coverage Dashboard
@@ -69,12 +44,12 @@ dbt-conceptual export --format bus-matrix -o bus-matrix.html
 
 | Use Case | Best Format |
 |----------|-------------|
-| GitHub README or docs | Mermaid (`.mmd`) |
-| Collaborative design sessions | Excalidraw (`.excalidraw`) |
-| Presentations or slides | PNG (`.png`) |
+| Visual diagrams for any purpose | PNG (`.png`) |
 | Track implementation progress | Coverage Dashboard (`.html`) |
 | Validate dimensional conformity | Bus Matrix (`.html`) |
+| Presentations or slides | PNG (`.png`) |
 | Quick sharing (Slack, email) | PNG (`.png`) |
+| Documentation | PNG (`.png`) |
 
 ## Sample Conceptual Model
 
@@ -85,3 +60,11 @@ The examples use this simple e-commerce model:
 - **Relationships**:
   - Customer → places → Order (1:N)
   - Order → contains → Product (N:M)
+
+## Why PNG?
+
+The PNG export uses Playwright to screenshot the actual interactive web UI canvas. This ensures:
+- **Visual consistency**: Exported diagrams look exactly like the interactive app
+- **Professional appearance**: Proper layout, colors, and styling
+- **Low maintenance**: One rendering engine (the frontend) for both interactive and static views
+- **Automatic updates**: Visual improvements to the UI automatically improve PNG exports
