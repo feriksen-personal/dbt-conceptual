@@ -154,3 +154,6 @@ logs/
 .prompt
 PUBLISHING.md
 .claude/
+
+# Local demo/test folder
+demo/
