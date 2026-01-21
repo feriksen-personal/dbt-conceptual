@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-01-21
+
+### Added
+
+- Validation messages panel with collapsible bar and expanded view
+- Error/warning/info filter toggles for validation messages
+- Ghost concept support for undefined relationship targets
+- Click-to-navigate from validation messages to related elements
+- Visual indicators for validation states on concept nodes and relationship edges
+- Status indicators in property panel for ghost concepts and validation issues
+- Sync button to trigger validation and refresh state
+- Unit tests for validate_and_sync method in parser.py
+
+### Changed
+
+- React Flow no longer crashes when edges reference non-existent nodes
+- Relationships referencing undefined concepts now show as invalid with red dashed lines
+- Property panel now shows ghost concept editing with "Save as Concept" button
+
+### Fixed
+
+- Blank page issue when relationships referenced non-existent concepts
+- Removed broken mermaid/excalidraw export tests that referenced non-existent functions
+
 ## [0.4.0] - 2026-01-19
 
 ### Added
@@ -110,7 +134,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/feriksen-personal/dbt-conceptual/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/feriksen-personal/dbt-conceptual/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/feriksen-personal/dbt-conceptual/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/feriksen-personal/dbt-conceptual/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/feriksen-personal/dbt-conceptual/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/feriksen-personal/dbt-conceptual/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/feriksen-personal/dbt-conceptual/compare/v0.2.0...v0.2.1
