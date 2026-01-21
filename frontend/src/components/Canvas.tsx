@@ -30,8 +30,6 @@ function CanvasInner() {
     relationships,
     positions,
     hasIntegrityErrors,
-    demoMode,
-    fetchMode,
     fetchState,
     updatePositions,
     saveLayout,
@@ -47,11 +45,10 @@ function CanvasInner() {
   // Track if we've applied auto-layout to avoid re-running
   const hasAppliedAutoLayout = useRef(false);
 
-  // Load state and mode on mount
+  // Load state on mount
   useEffect(() => {
-    fetchMode();
     fetchState();
-  }, [fetchMode, fetchState]);
+  }, [fetchState]);
 
   // Apply auto-layout when needed (no saved positions)
   useEffect(() => {
@@ -211,12 +208,7 @@ function CanvasInner() {
   }
 
   return (
-    <div style={{ flex: 1, height: '100vh', position: 'relative' }}>
-      {demoMode && (
-        <div className="demo-mode-watermark">
-          DEMO MODE
-        </div>
-      )}
+    <div style={{ flex: 1, height: '100vh' }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
