@@ -23,7 +23,7 @@ export function applyAutoLayout(
   relationships: Record<string, Relationship>,
   options: LayoutOptions = {}
 ): Record<string, Position> {
-  const { direction = 'LR', nodeSep = 50, rankSep = 100 } = options;
+  const { direction = 'LR', nodeSep = 80, rankSep = 150 } = options;
 
   // Create a new Dagre graph
   const g = new Dagre.graphlib.Graph();

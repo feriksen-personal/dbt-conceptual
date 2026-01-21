@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   ReactFlow,
+  ReactFlowProvider,
   Background,
   Controls,
-  MiniMap,
   useNodesState,
   useEdgesState,
+  useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
 import { useStore } from '../store';
-import { ConceptNode, type ConceptNodeData } from './ConceptNode';
+import { ConceptNode } from './ConceptNode';
 import { RelationshipEdge } from './RelationshipEdge';
 import { applyAutoLayout, needsAutoLayout } from '../layout';
 
@@ -22,7 +23,8 @@ const edgeTypes = {
   relationship: RelationshipEdge,
 };
 
-export function Canvas() {
+// Inner component that has access to React Flow instance
+function CanvasInner() {
   const {
     concepts,
     relationships,
@@ -33,8 +35,12 @@ export function Canvas() {
     saveLayout,
     selectConcept,
     selectRelationship,
-    clearSelection,
+    requestClearSelection,
+    selectedConceptId,
+    selectedRelationshipId,
   } = useStore();
+
+  const { fitView } = useReactFlow();
 
   // Track if we've applied auto-layout to avoid re-running
   const hasAppliedAutoLayout = useRef(false);
@@ -58,6 +64,52 @@ export function Canvas() {
       saveLayout().catch(console.error);
     }
   }, [concepts, relationships, positions, updatePositions, saveLayout]);
+
+  // Track previous selection to detect changes from search
+  const prevSelectedConceptId = useRef<string | null>(null);
+  const prevSelectedRelationshipId = useRef<string | null>(null);
+
+  // Center on selected node when selection changes (from search)
+  useEffect(() => {
+    // Only trigger if selection changed
+    if (
+      selectedConceptId !== prevSelectedConceptId.current ||
+      selectedRelationshipId !== prevSelectedRelationshipId.current
+    ) {
+      prevSelectedConceptId.current = selectedConceptId;
+      prevSelectedRelationshipId.current = selectedRelationshipId;
+
+      // If a concept is selected, center on it
+      if (selectedConceptId && positions[selectedConceptId]) {
+        // Small delay to ensure nodes are rendered
+        setTimeout(() => {
+          fitView({
+            nodes: [{ id: selectedConceptId }],
+            duration: 300,
+            padding: 0.5,
+          });
+        }, 50);
+      }
+      // If a relationship is selected, center on both connected nodes
+      else if (selectedRelationshipId) {
+        const relationship = relationships[selectedRelationshipId];
+        if (relationship) {
+          const nodeIds = [relationship.from_concept, relationship.to_concept].filter(
+            (id) => positions[id]
+          );
+          if (nodeIds.length > 0) {
+            setTimeout(() => {
+              fitView({
+                nodes: nodeIds.map((id) => ({ id })),
+                duration: 300,
+                padding: 0.3,
+              });
+            }, 50);
+          }
+        }
+      }
+    }
+  }, [selectedConceptId, selectedRelationshipId, positions, relationships, fitView]);
 
   // Convert concepts to React Flow nodes
   const initialNodes = useMemo(() => {
@@ -141,8 +193,8 @@ export function Canvas() {
 
   // Handle canvas click (clear selection)
   const handlePaneClick = useCallback(() => {
-    clearSelection();
-  }, [clearSelection]);
+    requestClearSelection();
+  }, [requestClearSelection]);
 
   // Show blocked state when integrity errors exist
   if (hasIntegrityErrors) {
@@ -173,13 +225,16 @@ export function Canvas() {
       >
         <Background />
         <Controls />
-        <MiniMap
-          nodeColor={(node: any) => {
-            const concept = (node.data as ConceptNodeData)?.concept;
-            return concept?.color || 'var(--color-neutral-300)';
-          }}
-        />
       </ReactFlow>
     </div>
+  );
+}
+
+// Wrapper component that provides React Flow context
+export function Canvas() {
+  return (
+    <ReactFlowProvider>
+      <CanvasInner />
+    </ReactFlowProvider>
   );
 }
