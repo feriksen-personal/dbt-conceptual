@@ -327,3 +327,273 @@ def test_state_builder_tracks_orphans() -> None:
         orphan = state.orphan_models[0]
         assert orphan.layer == "gold"
         assert orphan.path == "models/gold"
+
+
+def test_validate_and_sync_creates_ghost_concepts() -> None:
+    """Test that validate_and_sync creates ghost concepts for missing references."""
+    with TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+
+        # Create dbt_project.yml
+        with open(tmppath / "dbt_project.yml", "w") as f:
+            yaml.dump({"name": "test"}, f)
+
+        # Create conceptual.yml with relationship to non-existent concept
+        conceptual_dir = tmppath / "models" / "conceptual"
+        conceptual_dir.mkdir(parents=True)
+
+        conceptual_data = {
+            "version": 1,
+            "concepts": {"customer": {"name": "Customer"}},
+            "relationships": [
+                {
+                    "verb": "places",
+                    "from": "customer",
+                    "to": "order",
+                }  # 'order' doesn't exist
+            ],
+        }
+
+        with open(conceptual_dir / "conceptual.yml", "w") as f:
+            yaml.dump(conceptual_data, f)
+
+        config = Config.load(project_dir=tmppath)
+        builder = StateBuilder(config)
+        state = builder.build()
+        validation = builder.validate_and_sync(state)
+
+        # Check that ghost concept was created
+        assert "order" in state.concepts
+        assert state.concepts["order"].is_ghost is True
+        assert state.concepts["order"].validation_status == "error"
+
+        # Check that error message was generated
+        assert validation.error_count >= 1
+        error_msgs = [m for m in validation.messages if m.severity == "error"]
+        assert any("order" in m.text for m in error_msgs)
+
+
+def test_validate_and_sync_detects_duplicate_concepts() -> None:
+    """Test that validate_and_sync detects duplicate concept names."""
+    with TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+
+        # Create dbt_project.yml
+        with open(tmppath / "dbt_project.yml", "w") as f:
+            yaml.dump({"name": "test"}, f)
+
+        # Create conceptual.yml with duplicate concept names
+        conceptual_dir = tmppath / "models" / "conceptual"
+        conceptual_dir.mkdir(parents=True)
+
+        conceptual_data = {
+            "version": 1,
+            "concepts": {
+                "customer1": {"name": "Customer"},  # Same name
+                "customer2": {"name": "Customer"},  # Same name
+            },
+        }
+
+        with open(conceptual_dir / "conceptual.yml", "w") as f:
+            yaml.dump(conceptual_data, f)
+
+        config = Config.load(project_dir=tmppath)
+        builder = StateBuilder(config)
+        state = builder.build()
+        validation = builder.validate_and_sync(state)
+
+        # Check that error was detected
+        assert validation.error_count >= 1
+        error_msgs = [m for m in validation.messages if m.severity == "error"]
+        assert any("Duplicate concept name" in m.text for m in error_msgs)
+
+
+def test_validate_and_sync_handles_relationship_with_both_ghosts() -> None:
+    """Test that validate_and_sync creates ghosts for both missing concepts."""
+    with TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+
+        # Create dbt_project.yml
+        with open(tmppath / "dbt_project.yml", "w") as f:
+            yaml.dump({"name": "test"}, f)
+
+        # Create conceptual.yml where relationship references two missing concepts
+        conceptual_dir = tmppath / "models" / "conceptual"
+        conceptual_dir.mkdir(parents=True)
+
+        conceptual_data = {
+            "version": 1,
+            "concepts": {},  # No concepts defined
+            "relationships": [
+                {"verb": "places", "from": "customer", "to": "order"},
+            ],
+        }
+
+        with open(conceptual_dir / "conceptual.yml", "w") as f:
+            yaml.dump(conceptual_data, f)
+
+        config = Config.load(project_dir=tmppath)
+        builder = StateBuilder(config)
+        state = builder.build()
+        validation = builder.validate_and_sync(state)
+
+        # Both concepts should be created as ghosts
+        assert "customer" in state.concepts
+        assert "order" in state.concepts
+        assert state.concepts["customer"].is_ghost is True
+        assert state.concepts["order"].is_ghost is True
+
+        # Should have errors for both missing concepts
+        assert validation.error_count >= 2
+
+
+def test_validate_and_sync_counts_messages_correctly() -> None:
+    """Test that validate_and_sync counts messages by severity correctly."""
+    with TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+
+        # Create dbt_project.yml
+        with open(tmppath / "dbt_project.yml", "w") as f:
+            yaml.dump({"name": "test"}, f)
+
+        # Create conceptual.yml with various issues
+        conceptual_dir = tmppath / "models" / "conceptual"
+        conceptual_dir.mkdir(parents=True)
+
+        conceptual_data = {
+            "version": 1,
+            "domains": {
+                "party": {"name": "Party"},
+                "empty": {"name": "Empty"},  # Will be flagged as empty
+            },
+            "concepts": {
+                "customer": {"name": "Customer", "domain": "party"},
+            },
+            "relationships": [
+                {"verb": "places", "from": "customer", "to": "order"},  # Ghost created
+            ],
+        }
+
+        with open(conceptual_dir / "conceptual.yml", "w") as f:
+            yaml.dump(conceptual_data, f)
+
+        config = Config.load(project_dir=tmppath)
+        builder = StateBuilder(config)
+        state = builder.build()
+        validation = builder.validate_and_sync(state)
+
+        # Should have at least: 1 error (missing order), 1 warning (ghost stub + empty domain), 1 info
+        assert validation.error_count >= 1
+        assert validation.warning_count >= 1
+        assert validation.info_count >= 1
+
+        # Total should match sum
+        total = (
+            validation.error_count + validation.warning_count + validation.info_count
+        )
+        assert len(validation.messages) == total
+
+
+def test_validate_and_sync_detects_empty_domains() -> None:
+    """Test that validate_and_sync detects domains with no concepts."""
+    with TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+
+        # Create dbt_project.yml
+        with open(tmppath / "dbt_project.yml", "w") as f:
+            yaml.dump({"name": "test"}, f)
+
+        # Create conceptual.yml with empty domain
+        conceptual_dir = tmppath / "models" / "conceptual"
+        conceptual_dir.mkdir(parents=True)
+
+        conceptual_data = {
+            "version": 1,
+            "domains": {
+                "party": {"name": "Party"},
+                "empty_domain": {"name": "Empty Domain"},  # No concepts use this
+            },
+            "concepts": {
+                "customer": {"name": "Customer", "domain": "party"},
+            },
+        }
+
+        with open(conceptual_dir / "conceptual.yml", "w") as f:
+            yaml.dump(conceptual_data, f)
+
+        config = Config.load(project_dir=tmppath)
+        builder = StateBuilder(config)
+        state = builder.build()
+        validation = builder.validate_and_sync(state)
+
+        # Check that warning was generated for empty domain
+        warning_msgs = [m for m in validation.messages if m.severity == "warning"]
+        assert any("empty_domain" in m.text for m in warning_msgs)
+
+
+def test_validate_and_sync_returns_info_message() -> None:
+    """Test that validate_and_sync returns a sync info message."""
+    with TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+
+        # Create dbt_project.yml
+        with open(tmppath / "dbt_project.yml", "w") as f:
+            yaml.dump({"name": "test"}, f)
+
+        # Create conceptual.yml
+        conceptual_dir = tmppath / "models" / "conceptual"
+        conceptual_dir.mkdir(parents=True)
+
+        conceptual_data = {
+            "version": 1,
+            "concepts": {
+                "customer": {"name": "Customer"},
+                "order": {"name": "Order"},
+            },
+        }
+
+        with open(conceptual_dir / "conceptual.yml", "w") as f:
+            yaml.dump(conceptual_data, f)
+
+        config = Config.load(project_dir=tmppath)
+        builder = StateBuilder(config)
+        state = builder.build()
+        validation = builder.validate_and_sync(state)
+
+        # Check that info message was generated
+        assert validation.info_count >= 1
+        info_msgs = [m for m in validation.messages if m.severity == "info"]
+        assert any("Synced" in m.text and "concepts" in m.text for m in info_msgs)
+
+
+def test_validate_and_sync_marks_relationship_invalid() -> None:
+    """Test that relationships referencing ghost concepts are marked invalid."""
+    with TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+
+        # Create dbt_project.yml
+        with open(tmppath / "dbt_project.yml", "w") as f:
+            yaml.dump({"name": "test"}, f)
+
+        # Create conceptual.yml with missing concepts on both ends
+        conceptual_dir = tmppath / "models" / "conceptual"
+        conceptual_dir.mkdir(parents=True)
+
+        conceptual_data = {
+            "version": 1,
+            "concepts": {},  # No concepts defined
+            "relationships": [{"verb": "places", "from": "customer", "to": "order"}],
+        }
+
+        with open(conceptual_dir / "conceptual.yml", "w") as f:
+            yaml.dump(conceptual_data, f)
+
+        config = Config.load(project_dir=tmppath)
+        builder = StateBuilder(config)
+        state = builder.build()
+        builder.validate_and_sync(state)
+
+        # Check that relationship was marked invalid
+        rel = state.relationships["customer:places:order"]
+        assert rel.validation_status == "error"
+        assert len(rel.validation_messages) >= 2  # Both source and target missing
