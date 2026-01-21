@@ -1300,3 +1300,25 @@ code, pre {
   border-color: var(--ghost-border);
   color: var(--ghost-text);
 }
+
+/* === Canvas Blocked State (Integrity Errors) === */
+.canvas-blocked-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, var(--bg-page) 0%, #e8e8ec 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+}
+
+.canvas-blocked-x {
+  font-size: 200px;
+  font-weight: 100;
+  color: var(--border);
+  opacity: 0.4;
+  user-select: none;
+}

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-01-21
+
+### Fixed
+
+- Canvas shows blocked state with error message when conceptual.yml has integrity issues (relationships referencing undefined concepts)
+- Prevents React Flow crash on initial load when edges reference missing nodes
+- Added `hasIntegrityErrors` flag to API response for frontend to detect invalid state
+
 ## [0.5.1] - 2026-01-21
 
 ### Added
