@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-01-21
+
+### Added
+
+- Warning badge on stub concepts in canvas UI
+- "What's Persisted vs Transient" section in validation guide
+- Draft and Stub states to concept states documentation
+
+### Changed
+
+- Updated README taglines and added whiteboard photo quote
+- Concept states screenshot now shows 6 states in 3x2 grid layout
+
 ## [0.5.0] - 2026-01-21
 
 ### Added
@@ -134,7 +147,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/feriksen-personal/dbt-conceptual/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/feriksen-personal/dbt-conceptual/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/feriksen-personal/dbt-conceptual/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/feriksen-personal/dbt-conceptual/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/feriksen-personal/dbt-conceptual/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/feriksen-personal/dbt-conceptual/compare/v0.2.2...v0.3.0
