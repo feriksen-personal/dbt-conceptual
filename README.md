@@ -370,6 +370,10 @@ dbt-conceptual export --type validation --format markdown
 
 # Diagram (SVG)
 dbt-conceptual export --type diagram --format svg -o diagram.svg
+
+# Diff against base branch (CI/CD)
+dbt-conceptual export --type diff --format markdown --base main >> $GITHUB_STEP_SUMMARY
+dbt-conceptual export --type diff --format json --base origin/main | jq '.has_changes'
 ```
 
 **Export Matrix:**
@@ -381,6 +385,23 @@ dbt-conceptual export --type diagram --format svg -o diagram.svg
 | status | — | — | ✅ | ✅ |
 | orphans | — | — | ✅ | ✅ |
 | validation | — | — | ✅ | ✅ |
+| diff | — | — | ✅ | ✅ |
+
+**Common Recipes:**
+
+```bash
+# PR review — what changed?
+dbt-conceptual export --type diff --format markdown --base main
+
+# CI gate — any validation errors?
+dbt-conceptual export --type validation --format json | jq -e '.passed'
+
+# Dashboard — coverage report
+dbt-conceptual export --type coverage --format html -o coverage.html
+
+# Documentation — conceptual diagram
+dbt-conceptual export --type diagram --format svg -o model.svg
+```
 
 <!-- ASSET: docs/assets/bus-matrix.png — Kimball-style bus matrix showing dimensional coverage -->
 ![Bus matrix](docs/assets/bus-matrix.png)
@@ -429,7 +450,7 @@ vars:
 | `dbt-conceptual sync` | Sync from dbt project |
 | `dbt-conceptual sync --create-stubs` | Create stubs for undefined concepts |
 | `dbt-conceptual serve` | Launch web UI |
-| `dbt-conceptual export --format <fmt>` | Export diagram |
+| `dbt-conceptual export --type <type> --format <fmt>` | Export reports (see matrix above) |
 | `dbt-conceptual diff` | Show changes vs HEAD |
 | `dbt-conceptual diff --base main` | Show changes vs specified base |
 
