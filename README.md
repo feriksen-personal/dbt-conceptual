@@ -3,6 +3,8 @@
 </p>
 
 > *Conceptual modeling without the ceremony. Shared vocabulary for data teams who don't have time for meetings.*
+>
+> *If you've ever taken a photo of the whiteboard after a meeting to capture the model — this is for you.*
 
 [![PyPI version](https://img.shields.io/pypi/v/dbt-conceptual.svg)](https://pypi.org/project/dbt-conceptual/)
 [![Python](https://img.shields.io/badge/python-≥3.11-blue.svg)](https://pypi.org/project/dbt-conceptual/)
@@ -64,7 +66,7 @@ No logical model. No physical derivation. Just shared vocabulary that lives with
 
 > *"Just enough architecture to stay sane."*
 >
-> *"What Erwin would be if it had to survive a sprint."*
+> *"The Stoic's choice for conceptual modeling in the modern world."*
 >
 > *"Architecture that ships with the code."*
 
