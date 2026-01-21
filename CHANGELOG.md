@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.5] - 2026-01-21
+
+### Fixed
+
+- Include correct index.html in package (0.5.4 had placeholder index.html)
+
 ## [0.5.4] - 2026-01-21
 
 ### Fixed
