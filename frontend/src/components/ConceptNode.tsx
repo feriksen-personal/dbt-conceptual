@@ -25,7 +25,9 @@ export const ConceptNode = memo((props: any) => {
   // Validation status
   const isGhost = concept.isGhost;
   const validationStatus = concept.validationStatus || 'valid';
-  const hasValidationBadge = validationStatus === 'error' || validationStatus === 'warning';
+  const isStub = concept.status === 'stub';
+  // Show badge for validation issues OR for stub concepts (stubs get warning badge)
+  const hasValidationBadge = validationStatus === 'error' || validationStatus === 'warning' || isStub;
 
   // Build class names
   const classNames = ['concept-node'];
@@ -38,9 +40,9 @@ export const ConceptNode = memo((props: any) => {
       className={classNames.join(' ')}
       style={isGhost ? undefined : { borderLeftColor: domainColor }}
     >
-      {/* Validation badge */}
+      {/* Validation badge (also shown for stubs as warning) */}
       {hasValidationBadge && (
-        <div className={`validation-badge ${validationStatus}`}>!</div>
+        <div className={`validation-badge ${isStub && validationStatus === 'valid' ? 'warning' : validationStatus}`}>!</div>
       )}
 
       {/* Handles for connecting edges */}

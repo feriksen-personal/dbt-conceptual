@@ -17,6 +17,19 @@ dbt-conceptual validates your conceptual model against your dbt project, surfaci
 
 3. **Fix & Repeat** — Address issues in YAML or via the UI, then sync again.
 
+### What's Persisted vs Transient
+
+| Item | Persisted | Notes |
+| ---- | --------- | ----- |
+| Concepts | ✓ | Saved to `conceptual.yml` |
+| Relationships | ✓ | Saved to `conceptual.yml` |
+| Domains | ✓ | Saved to `conceptual.yml` |
+| Ghost concepts | ✗ | Created fresh on each sync |
+| Validation errors | ✗ | Recalculated on each sync |
+| Messages | ✗ | Cleared and repopulated on sync |
+
+**Key insight:** The canvas always reflects the current state of `conceptual.yml`. Ghost concepts and validation messages only appear after clicking sync — they're not saved to the file. Close and reopen the UI? You'll see your saved model, nothing more. Click sync? You'll see the current reality.
+
 ---
 
 ## The Messages Panel
@@ -145,10 +158,12 @@ When a relationship references a concept that doesn't exist, a **ghost concept**
 
 | State | Visual | Meaning |
 | ----- | ------ | ------- |
-| Valid | Normal styling | All references valid |
-| Ghost | Dashed grey, `?` icon, red badge | Referenced but not defined |
+| Valid | Solid border, model count badge | Fully defined with implementing models |
+| Draft | Dashed grey border | Missing domain or zero implementing models |
+| Stub | Dashed orange border, amber badge | Auto-generated, needs enrichment |
+| Ghost | Dashed grey fill, `?` icon, red badge | Referenced but not defined |
 | Error | Red border, red badge | Duplicate name or other error |
-| Warning | Amber border, amber badge | Model not found |
+| Warning | Amber border, amber badge | Model not found in project |
 
 ![Concept states](assets/concept-states.png)
 
