@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
-import type { Concept, ConceptStatus, ValidationStatus } from '../types';
+import type { Concept, ConceptStatus } from '../types';
 
 export type ConceptNodeData = {
   concept: Concept;

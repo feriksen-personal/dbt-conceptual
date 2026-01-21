@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.3] - 2026-01-21
+
+### Fixed
+
+- Include rebuilt frontend in package (fixes missing integrity error UI in 0.5.2)
+
 ## [0.5.2] - 2026-01-21
 
 ### Fixed
