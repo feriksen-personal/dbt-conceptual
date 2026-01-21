@@ -303,6 +303,24 @@ Use `--format markdown` to create rich visual summaries in GitHub Actions:
 
 The output renders as formatted tables with emoji indicators in the Actions UI.
 
+### 🔍 Validation & Messages
+
+Click sync to reveal drift between your conceptual model and reality:
+
+![Messages panel](docs/assets/messages-panel.png)
+
+| Type | Meaning |
+| ---- | ------- |
+| **Error** ⊘ | Broken references, duplicate concept names |
+| **Warning** ⚠ | Missing models in project, stubs created |
+| **Info** ℹ | Successful mappings, sync summary |
+
+**Ghost concepts** appear when relationships reference undefined concepts. They're visual placeholders — edit and save to make them real, or fix the underlying reference.
+
+![Ghost concept](docs/assets/ghost-concept.png)
+
+See [Validation Guide](docs/validation.md) for resolution steps.
+
 ### 🔄 Bi-Directional Sync
 
 **Top-down:** Define concepts in YAML, associate them with models via the UI.
@@ -381,6 +399,15 @@ vars:
 | `dbt-conceptual export --format <fmt>` | Export diagram |
 | `dbt-conceptual diff` | Show changes vs HEAD |
 | `dbt-conceptual diff --base main` | Show changes vs specified base |
+
+---
+
+## Documentation
+
+- [Validation & Messages Guide](docs/validation.md) — resolving errors, warnings, ghost concepts
+- [Configuration Reference](docs/configuration.md)
+- [Export Formats](docs/exports.md)
+- [CLI Reference](docs/cli.md)
 
 ---
 
