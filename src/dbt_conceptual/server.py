@@ -79,6 +79,15 @@ def create_app(project_dir: Path) -> Flask:
             builder = StateBuilder(config)
             state = builder.build()
 
+            # Check for integrity issues (relationships referencing missing concepts)
+            missing_refs = []
+            for _rel_id, rel in state.relationships.items():
+                if rel.from_concept not in state.concepts:
+                    missing_refs.append(rel.from_concept)
+                if rel.to_concept not in state.concepts:
+                    missing_refs.append(rel.to_concept)
+            has_integrity_errors = len(missing_refs) > 0
+
             # Load positions from layout.yml
             layout_file = config.layout_file
             positions = {}
@@ -138,6 +147,7 @@ def create_app(project_dir: Path) -> Flask:
                     for rel_id, rel in state.relationships.items()
                 },
                 "positions": positions,  # React Flow node positions
+                "hasIntegrityErrors": has_integrity_errors,
             }
 
             return jsonify(response)

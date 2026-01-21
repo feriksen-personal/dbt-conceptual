@@ -26,6 +26,7 @@ export function Canvas() {
     concepts,
     relationships,
     positions,
+    hasIntegrityErrors,
     fetchState,
     updatePositions,
     saveLayout,
@@ -122,6 +123,17 @@ export function Canvas() {
   const handlePaneClick = useCallback(() => {
     clearSelection();
   }, [clearSelection]);
+
+  // Show blocked state when integrity errors exist
+  if (hasIntegrityErrors) {
+    return (
+      <div style={{ flex: 1, height: '100vh', position: 'relative' }}>
+        <div className="canvas-blocked-overlay">
+          <div className="canvas-blocked-x">✕</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ flex: 1, height: '100vh' }}>

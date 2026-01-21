@@ -76,6 +76,7 @@ export interface ProjectState {
   concepts: Record<string, Concept>;
   relationships: Record<string, Relationship>;
   positions: Record<string, Position>; // React Flow positions by concept ID
+  hasIntegrityErrors?: boolean; // True if relationships reference missing concepts
 }
 
 export interface Settings {

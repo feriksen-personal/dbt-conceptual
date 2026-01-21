@@ -12,6 +12,7 @@ interface AppState extends ProjectState {
   isLoading: boolean;
   isSyncing: boolean;
   error: string | null;
+  hasIntegrityErrors: boolean;
 
   // Selection state
   selectedConceptId: string | null;
@@ -55,6 +56,7 @@ export const useStore = create<AppState>((set, get) => ({
   isLoading: false,
   isSyncing: false,
   error: null,
+  hasIntegrityErrors: false,
   selectedConceptId: null,
   selectedRelationshipId: null,
 
@@ -74,19 +76,29 @@ export const useStore = create<AppState>((set, get) => ({
 
   // Fetch state from API (no validation on initial load)
   fetchState: async () => {
-    set({ isLoading: true, error: null });
+    set({ isLoading: true, error: null, hasIntegrityErrors: false });
     try {
       const response = await fetch('/api/state');
       if (!response.ok) {
         throw new Error(`Failed to fetch state: ${response.statusText}`);
       }
       const data = await response.json();
+      const hasIntegrityErrors = data.hasIntegrityErrors || false;
+
       set({
         domains: data.domains || {},
         concepts: data.concepts || {},
         relationships: data.relationships || {},
         positions: data.positions || {},
+        hasIntegrityErrors,
         isLoading: false,
+        // If integrity errors, show message in panel
+        messages: hasIntegrityErrors
+          ? [{ id: 'integrity-error', severity: 'error' as const, text: 'Conceptual model has integrity issues. Sync to resolve.' }]
+          : [],
+        messageCounts: hasIntegrityErrors
+          ? { error: 1, warning: 0, info: 0 }
+          : { error: 0, warning: 0, info: 0 },
       });
     } catch (error) {
       set({
@@ -115,6 +127,7 @@ export const useStore = create<AppState>((set, get) => ({
           concepts: data.state.concepts || {},
           relationships: data.state.relationships || {},
           positions: data.state.positions || {},
+          hasIntegrityErrors: false, // Sync resolves integrity issues
           messages: data.messages || [],
           messageCounts: data.counts || { error: 0, warning: 0, info: 0 },
           isSyncing: false,
