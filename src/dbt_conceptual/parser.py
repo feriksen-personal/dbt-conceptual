@@ -1,5 +1,7 @@
 """Parser for conceptual.yml and dbt schema files."""
 
+from typing import Optional
+
 import yaml
 
 from dbt_conceptual.config import Config
@@ -7,9 +9,11 @@ from dbt_conceptual.scanner import DbtProjectScanner
 from dbt_conceptual.state import (
     ConceptState,
     DomainState,
+    Message,
     OrphanModel,
     ProjectState,
     RelationshipState,
+    ValidationState,
 )
 
 
@@ -265,3 +269,216 @@ class StateBuilder:
             print(
                 f"Warning: Failed to parse manifest.json for bronze dependencies: {e}"
             )
+
+    def validate_and_sync(self, state: ProjectState) -> ValidationState:
+        """Run validation checks and create ghost concepts for missing references.
+
+        This method:
+        1. Creates ghost concepts for relationships referencing non-existent concepts
+        2. Checks for duplicate concept names
+        3. Checks for duplicate relationships
+        4. Checks for missing models in the project
+        5. Generates appropriate messages
+
+        Args:
+            state: The current project state (will be modified in place)
+
+        Returns:
+            ValidationState with all messages and counts
+        """
+        messages: list[Message] = []
+        msg_counter = 0
+
+        def make_msg(
+            severity: str,
+            text: str,
+            element_type: Optional[str] = None,
+            element_id: Optional[str] = None,
+        ) -> Message:
+            nonlocal msg_counter
+            msg_counter += 1
+            return Message(
+                id=f"msg-{msg_counter}",
+                severity=severity,  # type: ignore[arg-type]
+                text=text,
+                element_type=element_type,  # type: ignore[arg-type]
+                element_id=element_id,
+            )
+
+        # 1. Check relationships for missing concepts and create ghosts
+        for rel_id, rel in state.relationships.items():
+            from_missing = rel.from_concept not in state.concepts
+            to_missing = rel.to_concept not in state.concepts
+
+            if from_missing:
+                # Create ghost concept
+                ghost = ConceptState(
+                    name=rel.from_concept,
+                    domain=None,
+                    is_ghost=True,
+                    validation_status="error",
+                    validation_messages=["Referenced but not defined"],
+                )
+                state.concepts[rel.from_concept] = ghost
+                messages.append(
+                    make_msg(
+                        "error",
+                        f"Relationship '{rel_id}' references non-existent "
+                        f"concept '{rel.from_concept}'",
+                        "relationship",
+                        rel_id,
+                    )
+                )
+                messages.append(
+                    make_msg(
+                        "warning",
+                        f"Stub created for concept '{rel.from_concept}'",
+                        "concept",
+                        rel.from_concept,
+                    )
+                )
+                rel.validation_status = "error"
+                rel.validation_messages.append(
+                    f"Source concept '{rel.from_concept}' not defined"
+                )
+
+            if to_missing:
+                # Create ghost concept
+                ghost = ConceptState(
+                    name=rel.to_concept,
+                    domain=None,
+                    is_ghost=True,
+                    validation_status="error",
+                    validation_messages=["Referenced but not defined"],
+                )
+                state.concepts[rel.to_concept] = ghost
+                messages.append(
+                    make_msg(
+                        "error",
+                        f"Relationship '{rel_id}' references non-existent "
+                        f"concept '{rel.to_concept}'",
+                        "relationship",
+                        rel_id,
+                    )
+                )
+                messages.append(
+                    make_msg(
+                        "warning",
+                        f"Stub created for concept '{rel.to_concept}'",
+                        "concept",
+                        rel.to_concept,
+                    )
+                )
+                rel.validation_status = "error"
+                rel.validation_messages.append(
+                    f"Target concept '{rel.to_concept}' not defined"
+                )
+
+        # 2. Check for duplicate concept names
+        names_seen: dict[str, str] = {}  # name -> first concept_id
+        for concept_id, concept in state.concepts.items():
+            if concept.is_ghost:
+                continue  # Skip ghosts for duplicate check
+            if concept.name in names_seen:
+                first_id = names_seen[concept.name]
+                messages.append(
+                    make_msg(
+                        "error",
+                        f"Duplicate concept name '{concept.name}'",
+                        "concept",
+                        concept_id,
+                    )
+                )
+                concept.validation_status = "error"
+                concept.validation_messages.append(f"Duplicate name: {concept.name}")
+                # Also mark the first one
+                if first_id in state.concepts:
+                    state.concepts[first_id].validation_status = "error"
+                    state.concepts[first_id].validation_messages.append(
+                        f"Duplicate name: {concept.name}"
+                    )
+            else:
+                names_seen[concept.name] = concept_id
+
+        # 3. Check for duplicate relationships
+        rel_keys_seen: dict[str, str] = {}  # key -> first rel_id
+        for rel_id, rel in state.relationships.items():
+            key = f"{rel.from_concept}:{rel.verb}:{rel.to_concept}"
+            if key in rel_keys_seen and rel_keys_seen[key] != rel_id:
+                messages.append(
+                    make_msg(
+                        "error",
+                        f"Duplicate relationship '{rel_id}'",
+                        "relationship",
+                        rel_id,
+                    )
+                )
+                rel.validation_status = "error"
+                rel.validation_messages.append("Duplicate relationship")
+            else:
+                rel_keys_seen[key] = rel_id
+
+        # 4. Check for models referenced but not found in project
+        available_models = self._get_available_models()
+        for concept_id, concept in state.concepts.items():
+            if concept.is_ghost:
+                continue
+            all_models = concept.silver_models + concept.gold_models
+            for model_name in all_models:
+                if model_name not in available_models:
+                    messages.append(
+                        make_msg(
+                            "warning",
+                            f"Model '{model_name}' not found in project",
+                            "concept",
+                            concept_id,
+                        )
+                    )
+                    if concept.validation_status == "valid":
+                        concept.validation_status = "warning"
+                    concept.validation_messages.append(
+                        f"Model '{model_name}' not found"
+                    )
+
+        # 5. Check for empty domains
+        domain_concept_counts: dict[str, int] = dict.fromkeys(state.domains, 0)
+        for concept in state.concepts.values():
+            if concept.domain and not concept.is_ghost:
+                if concept.domain in domain_concept_counts:
+                    domain_concept_counts[concept.domain] += 1
+        for domain_id, count in domain_concept_counts.items():
+            if count == 0:
+                messages.append(
+                    make_msg(
+                        "warning",
+                        f"Domain '{domain_id}' has no concepts",
+                        "domain",
+                        domain_id,
+                    )
+                )
+
+        # 6. Add sync info message
+        real_concepts = [c for c in state.concepts.values() if not c.is_ghost]
+        messages.append(
+            make_msg(
+                "info",
+                f"Synced {len(real_concepts)} concepts from conceptual.yml",
+            )
+        )
+
+        # Count by severity
+        error_count = sum(1 for m in messages if m.severity == "error")
+        warning_count = sum(1 for m in messages if m.severity == "warning")
+        info_count = sum(1 for m in messages if m.severity == "info")
+
+        return ValidationState(
+            messages=messages,
+            error_count=error_count,
+            warning_count=warning_count,
+            info_count=info_count,
+        )
+
+    def _get_available_models(self) -> set[str]:
+        """Get set of model names available in the project."""
+        models = self.scanner.scan()
+        return {m["name"] for m in models}

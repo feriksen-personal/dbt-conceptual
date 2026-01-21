@@ -5,7 +5,6 @@ import tempfile
 from pathlib import Path
 from typing import BinaryIO
 
-from dbt_conceptual.config import Config
 from dbt_conceptual.state import ProjectState
 
 
@@ -73,7 +72,6 @@ async def _capture_canvas_screenshot(state: ProjectState) -> bytes:
         # Start Flask server in background thread
         from dbt_conceptual.server import create_app
 
-        config = Config.load(project_dir=tmpdir_path)
         app = create_app(tmpdir_path)
 
         server_thread = threading.Thread(

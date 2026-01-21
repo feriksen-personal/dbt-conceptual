@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
-import type { Concept, ConceptStatus } from '../types';
+import type { Concept, ConceptStatus, ValidationStatus } from '../types';
 
 export type ConceptNodeData = {
   concept: Concept;
@@ -22,8 +22,27 @@ export const ConceptNode = memo((props: any) => {
   // Domain color (or default)
   const domainColor = concept.color || 'var(--color-neutral-300)';
 
+  // Validation status
+  const isGhost = concept.isGhost;
+  const validationStatus = concept.validationStatus || 'valid';
+  const hasValidationBadge = validationStatus === 'error' || validationStatus === 'warning';
+
+  // Build class names
+  const classNames = ['concept-node'];
+  if (isGhost) classNames.push('ghost');
+  if (validationStatus === 'error') classNames.push('error');
+  if (validationStatus === 'warning') classNames.push('warning');
+
   return (
-    <div className="concept-node" style={{ borderLeftColor: domainColor }}>
+    <div
+      className={classNames.join(' ')}
+      style={isGhost ? undefined : { borderLeftColor: domainColor }}
+    >
+      {/* Validation badge */}
+      {hasValidationBadge && (
+        <div className={`validation-badge ${validationStatus}`}>!</div>
+      )}
+
       {/* Handles for connecting edges */}
       <Handle
         type="target"
@@ -38,53 +57,62 @@ export const ConceptNode = memo((props: any) => {
 
       {/* Header with name and status */}
       <div className="concept-node-header">
-        <div className="concept-node-name">{concept.name}</div>
-        <div
-          className="concept-node-status"
-          style={{ backgroundColor: statusColor }}
-        >
-          {concept.status}
+        <div className="concept-node-name">
+          {isGhost && <span className="ghost-icon">?</span>}
+          {concept.name}
         </div>
+        {!isGhost && (
+          <div
+            className="concept-node-status"
+            style={{ backgroundColor: statusColor }}
+          >
+            {concept.status}
+          </div>
+        )}
       </div>
 
       {/* Domain badge */}
-      {concept.domain && (
+      {isGhost ? (
+        <div className="concept-node-domain">undefined</div>
+      ) : concept.domain ? (
         <div className="concept-node-domain" style={{ color: domainColor }}>
           {concept.domain}
         </div>
+      ) : null}
+
+      {/* Model counts (not shown for ghosts) */}
+      {!isGhost && (
+        <div className="concept-node-models">
+          {concept.bronze_models.length > 0 && (
+            <div className="model-count model-count-bronze">
+              <span className="model-count-icon">{'\u2B21'}</span>
+              {concept.bronze_models.length}
+            </div>
+          )}
+          {concept.silver_models.length > 0 && (
+            <div className="model-count model-count-silver">
+              <span className="model-count-icon">{'\u25C7'}</span>
+              {concept.silver_models.length}
+            </div>
+          )}
+          {concept.gold_models.length > 0 && (
+            <div className="model-count model-count-gold">
+              <span className="model-count-icon">{'\u25C6'}</span>
+              {concept.gold_models.length}
+            </div>
+          )}
+        </div>
       )}
 
-      {/* Model counts */}
-      <div className="concept-node-models">
-        {concept.bronze_models.length > 0 && (
-          <div className="model-count model-count-bronze">
-            <span className="model-count-icon">⬡</span>
-            {concept.bronze_models.length}
-          </div>
-        )}
-        {concept.silver_models.length > 0 && (
-          <div className="model-count model-count-silver">
-            <span className="model-count-icon">◇</span>
-            {concept.silver_models.length}
-          </div>
-        )}
-        {concept.gold_models.length > 0 && (
-          <div className="model-count model-count-gold">
-            <span className="model-count-icon">◆</span>
-            {concept.gold_models.length}
-          </div>
-        )}
-      </div>
-
-      {/* Owner (if set) */}
-      {concept.owner && (
+      {/* Owner (if set and not ghost) */}
+      {!isGhost && concept.owner && (
         <div className="concept-node-owner">@{concept.owner}</div>
       )}
 
       {/* Deprecation notice */}
-      {concept.replaced_by && (
+      {!isGhost && concept.replaced_by && (
         <div className="concept-node-deprecation">
-          → {concept.replaced_by}
+          {'\u2192'} {concept.replaced_by}
         </div>
       )}
     </div>

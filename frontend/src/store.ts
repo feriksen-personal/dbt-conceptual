@@ -1,17 +1,35 @@
 import { create } from 'zustand';
-import type { ProjectState, Concept, Relationship } from './types';
+import type { ProjectState, Concept, Relationship, Message, MessageSeverity } from './types';
+
+interface MessageFilters {
+  error: boolean;
+  warning: boolean;
+  info: boolean;
+}
 
 interface AppState extends ProjectState {
   // Loading state
   isLoading: boolean;
+  isSyncing: boolean;
   error: string | null;
 
   // Selection state
   selectedConceptId: string | null;
   selectedRelationshipId: string | null;
 
+  // Messages panel state
+  messages: Message[];
+  messageFilters: MessageFilters;
+  messagesPanelExpanded: boolean;
+  messageCounts: {
+    error: number;
+    warning: number;
+    info: number;
+  };
+
   // Actions
   fetchState: () => Promise<void>;
+  sync: () => Promise<void>;
   updateConcept: (id: string, updates: Partial<Concept>) => void;
   updateRelationship: (id: string, updates: Partial<Relationship>) => void;
   updatePositions: (positions: Record<string, { x: number; y: number }>) => void;
@@ -20,6 +38,12 @@ interface AppState extends ProjectState {
   selectConcept: (id: string | null) => void;
   selectRelationship: (id: string | null) => void;
   clearSelection: () => void;
+  deleteGhostConcept: (id: string) => void;
+
+  // Messages panel actions
+  toggleMessageFilter: (severity: MessageSeverity) => void;
+  toggleMessagesPanel: () => void;
+  clearMessages: () => void;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -29,11 +53,26 @@ export const useStore = create<AppState>((set, get) => ({
   relationships: {},
   positions: {},
   isLoading: false,
+  isSyncing: false,
   error: null,
   selectedConceptId: null,
   selectedRelationshipId: null,
 
-  // Fetch state from API
+  // Messages panel initial state
+  messages: [],
+  messageFilters: {
+    error: true,
+    warning: true,
+    info: true,
+  },
+  messagesPanelExpanded: false,
+  messageCounts: {
+    error: 0,
+    warning: 0,
+    info: 0,
+  },
+
+  // Fetch state from API (no validation on initial load)
   fetchState: async () => {
     set({ isLoading: true, error: null });
     try {
@@ -53,6 +92,40 @@ export const useStore = create<AppState>((set, get) => ({
       set({
         error: error instanceof Error ? error.message : 'Unknown error',
         isLoading: false,
+      });
+    }
+  },
+
+  // Sync with dbt project and run validation
+  sync: async () => {
+    set({ isSyncing: true, error: null });
+    try {
+      const response = await fetch('/api/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to sync: ${response.statusText}`);
+      }
+      const data = await response.json();
+
+      if (data.success && data.state) {
+        set({
+          domains: data.state.domains || {},
+          concepts: data.state.concepts || {},
+          relationships: data.state.relationships || {},
+          positions: data.state.positions || {},
+          messages: data.messages || [],
+          messageCounts: data.counts || { error: 0, warning: 0, info: 0 },
+          isSyncing: false,
+        });
+      } else {
+        throw new Error(data.error || 'Sync failed');
+      }
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : 'Unknown error',
+        isSyncing: false,
       });
     }
   },
@@ -135,5 +208,42 @@ export const useStore = create<AppState>((set, get) => ({
 
   clearSelection: () => {
     set({ selectedConceptId: null, selectedRelationshipId: null });
+  },
+
+  // Delete a ghost concept from canvas (not persisted, reappears on next sync)
+  deleteGhostConcept: (id: string) => {
+    set((state) => {
+      const concept = state.concepts[id];
+      if (!concept?.isGhost) return state;
+
+      const { [id]: removed, ...remainingConcepts } = state.concepts;
+      return {
+        concepts: remainingConcepts,
+        selectedConceptId: state.selectedConceptId === id ? null : state.selectedConceptId,
+      };
+    });
+  },
+
+  // Messages panel actions
+  toggleMessageFilter: (severity: MessageSeverity) => {
+    set((state) => ({
+      messageFilters: {
+        ...state.messageFilters,
+        [severity]: !state.messageFilters[severity],
+      },
+    }));
+  },
+
+  toggleMessagesPanel: () => {
+    set((state) => ({
+      messagesPanelExpanded: !state.messagesPanelExpanded,
+    }));
+  },
+
+  clearMessages: () => {
+    set({
+      messages: [],
+      messageCounts: { error: 0, warning: 0, info: 0 },
+    });
   },
 }));

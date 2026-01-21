@@ -3,6 +3,31 @@
 from dataclasses import dataclass, field
 from typing import Literal, Optional
 
+# Validation types
+ValidationStatus = Literal["valid", "warning", "error"]
+MessageSeverity = Literal["error", "warning", "info"]
+
+
+@dataclass
+class Message:
+    """Represents a validation message."""
+
+    id: str
+    severity: MessageSeverity
+    text: str
+    element_type: Optional[Literal["concept", "relationship", "domain"]] = None
+    element_id: Optional[str] = None
+
+
+@dataclass
+class ValidationState:
+    """Represents the validation state after sync."""
+
+    messages: list[Message] = field(default_factory=list)
+    error_count: int = 0
+    warning_count: int = 0
+    info_count: int = 0
+
 
 @dataclass
 class ConceptState:
@@ -33,6 +58,11 @@ class ConceptState:
     gold_models: list[str] = field(
         default_factory=list
     )  # From meta.concept in gold paths
+
+    # Validation fields (populated during sync)
+    is_ghost: bool = False  # True if referenced but not defined in YAML
+    validation_status: ValidationStatus = "valid"
+    validation_messages: list[str] = field(default_factory=list)
 
     @property
     def status(self) -> Literal["stub", "draft", "complete", "deprecated"]:
@@ -74,6 +104,10 @@ class RelationshipState:
 
     # Derived fields (populated at runtime, not stored in YAML)
     realized_by: list[str] = field(default_factory=list)  # From meta.realizes tags
+
+    # Validation fields (populated during sync)
+    validation_status: ValidationStatus = "valid"
+    validation_messages: list[str] = field(default_factory=list)
 
     @property
     def name(self) -> str:

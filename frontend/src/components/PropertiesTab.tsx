@@ -12,12 +12,27 @@ export function PropertiesTab({ conceptId, relationshipId }: PropertiesTabProps)
     const concept = concepts[conceptId];
     if (!concept) return null;
 
+    const isGhost = concept.isGhost;
+    const hasValidationIssues =
+      concept.validationStatus === 'error' || concept.validationStatus === 'warning';
+
+    // Count relationships referencing this ghost concept
+    const referencingRelationships = isGhost
+      ? Object.values(relationships).filter(
+          (r) => r.from_concept === conceptId || r.to_concept === conceptId
+        ).length
+      : 0;
+
     const handleChange = (field: string, value: string) => {
       updateConcept(conceptId, { [field]: value });
     };
 
     const handleSave = async () => {
       try {
+        // When saving a ghost concept with a domain, it becomes a real concept
+        if (isGhost && concept.domain) {
+          updateConcept(conceptId, { isGhost: false, validationStatus: 'valid', validationMessages: [] });
+        }
         await saveState();
       } catch (error) {
         console.error('Failed to save:', error);
@@ -26,12 +41,28 @@ export function PropertiesTab({ conceptId, relationshipId }: PropertiesTabProps)
 
     return (
       <div className="properties-tab">
+        {/* Status indicator for ghost concepts */}
+        {isGhost && (
+          <div className="status-indicator">
+            <span>{'\u2298'}</span>
+            <span>Undefined — referenced by {referencingRelationships} relationship{referencingRelationships !== 1 ? 's' : ''}</span>
+          </div>
+        )}
+
+        {/* Validation messages */}
+        {!isGhost && hasValidationIssues && (
+          <div className={`status-indicator ${concept.validationStatus}`}>
+            <span>{concept.validationStatus === 'error' ? '\u2298' : '\u26A0'}</span>
+            <span>{concept.validationMessages.join(', ')}</span>
+          </div>
+        )}
+
         {/* Name */}
         <div className="property-field">
           <label className="property-label">Name</label>
           <input
             type="text"
-            className="property-input"
+            className={`property-input ${isGhost ? 'ghost-field' : ''}`}
             value={concept.name}
             onChange={(e) => handleChange('name', e.target.value)}
             placeholder="Concept name"
@@ -46,7 +77,7 @@ export function PropertiesTab({ conceptId, relationshipId }: PropertiesTabProps)
             value={concept.domain || ''}
             onChange={(e) => handleChange('domain', e.target.value)}
           >
-            <option value="">None</option>
+            <option value="">Select domain...</option>
             {Object.keys(domains).map((domainId) => (
               <option key={domainId} value={domainId}>
                 {domains[domainId].display_name}
@@ -63,7 +94,7 @@ export function PropertiesTab({ conceptId, relationshipId }: PropertiesTabProps)
             className="property-input"
             value={concept.owner || ''}
             onChange={(e) => handleChange('owner', e.target.value)}
-            placeholder="@username"
+            placeholder="e.g., data_team"
           />
         </div>
 
@@ -79,43 +110,49 @@ export function PropertiesTab({ conceptId, relationshipId }: PropertiesTabProps)
           />
         </div>
 
-        {/* Color */}
-        <div className="property-field">
-          <label className="property-label">Custom Color</label>
-          <input
-            type="color"
-            className="property-color"
-            value={concept.color || '#4a9eff'}
-            onChange={(e) => handleChange('color', e.target.value)}
-          />
-        </div>
-
-        {/* Replaced By (for deprecation) */}
-        <div className="property-field">
-          <label className="property-label">Replaced By</label>
-          <input
-            type="text"
-            className="property-input"
-            value={concept.replaced_by || ''}
-            onChange={(e) => handleChange('replaced_by', e.target.value)}
-            placeholder="New concept name"
-          />
-        </div>
-
-        {/* Status (read-only, derived) */}
-        <div className="property-field">
-          <label className="property-label">Status</label>
-          <div className="property-readonly">
-            <span className={`status-badge status-${concept.status}`}>
-              {concept.status}
-            </span>
-            <span className="property-help">Derived from domain and models</span>
+        {/* Color (only for non-ghost concepts) */}
+        {!isGhost && (
+          <div className="property-field">
+            <label className="property-label">Custom Color</label>
+            <input
+              type="color"
+              className="property-color"
+              value={concept.color || '#4a9eff'}
+              onChange={(e) => handleChange('color', e.target.value)}
+            />
           </div>
-        </div>
+        )}
+
+        {/* Replaced By (for deprecation, only for non-ghost) */}
+        {!isGhost && (
+          <div className="property-field">
+            <label className="property-label">Replaced By</label>
+            <input
+              type="text"
+              className="property-input"
+              value={concept.replaced_by || ''}
+              onChange={(e) => handleChange('replaced_by', e.target.value)}
+              placeholder="New concept name"
+            />
+          </div>
+        )}
+
+        {/* Status (read-only, derived) - only for non-ghost */}
+        {!isGhost && (
+          <div className="property-field">
+            <label className="property-label">Status</label>
+            <div className="property-readonly">
+              <span className={`status-badge status-${concept.status}`}>
+                {concept.status}
+              </span>
+              <span className="property-help">Derived from domain and models</span>
+            </div>
+          </div>
+        )}
 
         {/* Save button */}
         <button className="property-save-btn" onClick={handleSave}>
-          Save Changes
+          {isGhost ? 'Save as Concept' : 'Save Changes'}
         </button>
       </div>
     );
@@ -124,6 +161,16 @@ export function PropertiesTab({ conceptId, relationshipId }: PropertiesTabProps)
   if (relationshipId) {
     const relationship = relationships[relationshipId];
     if (!relationship) return null;
+
+    const isInvalid = relationship.validationStatus === 'error';
+    const hasValidationIssues =
+      relationship.validationStatus === 'error' || relationship.validationStatus === 'warning';
+
+    // Check if source or target is a ghost
+    const fromConcept = concepts[relationship.from_concept];
+    const toConcept = concepts[relationship.to_concept];
+    const fromIsGhost = fromConcept?.isGhost;
+    const toIsGhost = toConcept?.isGhost;
 
     const handleChange = (field: string, value: string | string[]) => {
       updateRelationship(relationshipId, { [field]: value });
@@ -139,6 +186,18 @@ export function PropertiesTab({ conceptId, relationshipId }: PropertiesTabProps)
 
     return (
       <div className="properties-tab">
+        {/* Status indicator for invalid relationships */}
+        {hasValidationIssues && (
+          <div className={`status-indicator ${relationship.validationStatus}`}>
+            <span>{relationship.validationStatus === 'error' ? '\u2298' : '\u26A0'}</span>
+            <span>
+              {isInvalid
+                ? `Invalid — ${toIsGhost ? 'target' : fromIsGhost ? 'source' : ''} concept not defined`
+                : relationship.validationMessages.join(', ')}
+            </span>
+          </div>
+        )}
+
         {/* Verb */}
         <div className="property-field">
           <label className="property-label">Verb</label>
@@ -163,12 +222,26 @@ export function PropertiesTab({ conceptId, relationshipId }: PropertiesTabProps)
           />
         </div>
 
-        {/* From/To (read-only) */}
+        {/* From */}
         <div className="property-field">
-          <label className="property-label">From → To</label>
-          <div className="property-readonly">
-            {relationship.from_concept} → {relationship.to_concept}
-          </div>
+          <label className="property-label">From</label>
+          <input
+            type="text"
+            className={`property-input ${fromIsGhost ? 'error' : ''}`}
+            value={relationship.from_concept}
+            readOnly
+          />
+        </div>
+
+        {/* To */}
+        <div className="property-field">
+          <label className="property-label">To</label>
+          <input
+            type="text"
+            className={`property-input ${toIsGhost ? 'error' : ''}`}
+            value={relationship.to_concept}
+            readOnly
+          />
         </div>
 
         {/* Cardinality */}

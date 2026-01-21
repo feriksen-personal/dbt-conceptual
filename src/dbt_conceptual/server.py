@@ -111,6 +111,10 @@ def create_app(project_dir: Path) -> Flask:
                         "bronze_models": concept.bronze_models or [],
                         "silver_models": concept.silver_models or [],
                         "gold_models": concept.gold_models or [],
+                        # Validation fields
+                        "isGhost": concept.is_ghost,
+                        "validationStatus": concept.validation_status,
+                        "validationMessages": concept.validation_messages,
                     }
                     for concept_id, concept in state.concepts.items()
                 },
@@ -127,6 +131,9 @@ def create_app(project_dir: Path) -> Flask:
                         "definition": rel.definition,
                         "status": rel.status,  # Derived at runtime
                         "realized_by": rel.realized_by or [],
+                        # Validation fields
+                        "validationStatus": rel.validation_status,
+                        "validationMessages": rel.validation_messages,
                     }
                     for rel_id, rel in state.relationships.items()
                 },
@@ -168,6 +175,9 @@ def create_app(project_dir: Path) -> Flask:
             if data.get("concepts"):
                 yaml_data["concepts"] = {}
                 for concept_id, concept in data["concepts"].items():
+                    # Skip ghost concepts that haven't been properly defined
+                    if concept.get("isGhost") and not concept.get("domain"):
+                        continue
                     # Only save fields that belong in YAML (not derived fields)
                     concept_dict = {
                         k: v
@@ -179,6 +189,9 @@ def create_app(project_dir: Path) -> Flask:
                             "bronze_models",  # Derived from manifest
                             "silver_models",  # Derived from meta.concept
                             "gold_models",  # Derived from meta.concept
+                            "isGhost",  # Validation field
+                            "validationStatus",  # Validation field
+                            "validationMessages",  # Validation field
                         )
                     }
                     yaml_data["concepts"][concept_id] = concept_dict
@@ -191,8 +204,14 @@ def create_app(project_dir: Path) -> Flask:
                     for k, v in rel.items():
                         if v is None:
                             continue
-                        # Skip derived fields
-                        if k in ("name", "status", "realized_by"):
+                        # Skip derived and validation fields
+                        if k in (
+                            "name",
+                            "status",
+                            "realized_by",
+                            "validationStatus",
+                            "validationMessages",
+                        ):
                             continue
                         # Map API field names to YAML field names
                         if k == "from_concept":
@@ -301,35 +320,99 @@ def create_app(project_dir: Path) -> Flask:
         """Trigger sync from dbt project.
 
         Scans dbt models for meta.concept and meta.realizes tags,
-        creates stub concepts/relationships for undefined references.
+        creates ghost concepts for undefined references,
+        runs validation, and returns messages.
         """
         try:
+            import yaml as yaml_lib
+
             # Rebuild state from current dbt project
             builder = StateBuilder(config)
             state = builder.build()
 
-            # Track what was discovered/updated
-            created_stubs = []
-            updated_counts: dict[str, dict[str, int]] = {}
+            # Run validation and create ghosts
+            validation = builder.validate_and_sync(state)
 
-            # Identify stub concepts (these were likely created from sync)
-            for concept_id, concept in state.concepts.items():
-                if concept.status == "stub":
-                    created_stubs.append(concept_id)
+            # Load positions from layout.yml
+            layout_file = config.layout_file
+            positions: dict[str, Any] = {}
+            if layout_file.exists():
+                with open(layout_file) as f:
+                    layout_data = yaml_lib.safe_load(f) or {}
+                    positions = layout_data.get("positions", {})
 
-                # Track model counts
-                updated_counts[concept_id] = {
-                    "silver": len(concept.silver_models),
-                    "gold": len(concept.gold_models),
-                    "bronze": len(concept.bronze_models),
-                }
+            # Identify ghost concepts
+            ghost_concepts = [cid for cid, c in state.concepts.items() if c.is_ghost]
+
+            # Build full state response (same format as GET /api/state)
+            state_response = {
+                "domains": {
+                    domain_id: {
+                        "name": domain.name,
+                        "display_name": domain.display_name,
+                        "color": domain.color,
+                    }
+                    for domain_id, domain in state.domains.items()
+                },
+                "concepts": {
+                    concept_id: {
+                        "name": concept.name,
+                        "definition": concept.definition,
+                        "domain": concept.domain,
+                        "owner": concept.owner,
+                        "status": concept.status,
+                        "color": concept.color,
+                        "replaced_by": concept.replaced_by,
+                        "bronze_models": concept.bronze_models or [],
+                        "silver_models": concept.silver_models or [],
+                        "gold_models": concept.gold_models or [],
+                        "isGhost": concept.is_ghost,
+                        "validationStatus": concept.validation_status,
+                        "validationMessages": concept.validation_messages,
+                    }
+                    for concept_id, concept in state.concepts.items()
+                },
+                "relationships": {
+                    rel_id: {
+                        "name": rel.name,
+                        "verb": rel.verb,
+                        "custom_name": rel.custom_name,
+                        "from_concept": rel.from_concept,
+                        "to_concept": rel.to_concept,
+                        "cardinality": rel.cardinality,
+                        "domains": rel.domains,
+                        "owner": rel.owner,
+                        "definition": rel.definition,
+                        "status": rel.status,
+                        "realized_by": rel.realized_by or [],
+                        "validationStatus": rel.validation_status,
+                        "validationMessages": rel.validation_messages,
+                    }
+                    for rel_id, rel in state.relationships.items()
+                },
+                "positions": positions,
+            }
 
             return jsonify(
                 {
                     "success": True,
-                    "created_stubs": created_stubs,
-                    "updated_counts": updated_counts,
-                    "message": f"Sync complete. Found {len(state.concepts)} concepts, {len(state.relationships)} relationships.",
+                    "messages": [
+                        {
+                            "id": msg.id,
+                            "severity": msg.severity,
+                            "text": msg.text,
+                            "elementType": msg.element_type,
+                            "elementId": msg.element_id,
+                        }
+                        for msg in validation.messages
+                    ],
+                    "counts": {
+                        "error": validation.error_count,
+                        "warning": validation.warning_count,
+                        "info": validation.info_count,
+                    },
+                    "ghostConcepts": ghost_concepts,
+                    "state": state_response,
                 }
             )
         except Exception as e:

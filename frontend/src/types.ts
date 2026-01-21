@@ -5,6 +5,27 @@ export type ConceptStatus = 'stub' | 'draft' | 'complete' | 'deprecated';
 export type RelationshipStatus = 'stub' | 'draft' | 'complete';
 export type Cardinality = '1:1' | '1:N' | 'N:M';
 
+// Validation types
+export type ValidationStatus = 'valid' | 'warning' | 'error';
+export type MessageSeverity = 'error' | 'warning' | 'info';
+
+export interface Message {
+  id: string;
+  severity: MessageSeverity;
+  text: string;
+  elementType?: 'concept' | 'relationship' | 'domain';
+  elementId?: string;
+}
+
+export interface ValidationState {
+  messages: Message[];
+  counts: {
+    error: number;
+    warning: number;
+    info: number;
+  };
+}
+
 export interface Domain {
   name: string;
   display_name: string;
@@ -22,6 +43,10 @@ export interface Concept {
   bronze_models: string[];
   silver_models: string[];
   gold_models: string[];
+  // Validation fields
+  isGhost: boolean;
+  validationStatus: ValidationStatus;
+  validationMessages: string[];
 }
 
 export interface Relationship {
@@ -36,6 +61,9 @@ export interface Relationship {
   custom_name?: string;
   status: RelationshipStatus; // Derived at runtime
   realized_by: string[];
+  // Validation fields
+  validationStatus: ValidationStatus;
+  validationMessages: string[];
 }
 
 export interface Position {
@@ -62,9 +90,14 @@ export interface Settings {
 
 export interface SyncResponse {
   success: boolean;
-  created_stubs: string[];
-  updated_counts: Record<string, { silver: number; gold: number; bronze: number }>;
-  message: string;
+  messages: Message[];
+  counts: {
+    error: number;
+    warning: number;
+    info: number;
+  };
+  ghostConcepts: string[];
+  state: ProjectState;
 }
 
 // React Flow types
