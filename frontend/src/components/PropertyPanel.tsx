@@ -3,6 +3,7 @@ import { useStore } from '../store';
 import { PropertiesTab } from './PropertiesTab';
 import type { PropertiesTabHandle } from './PropertiesTab';
 import { ModelsTab } from './ModelsTab';
+import { RelationshipModelsTab } from './RelationshipModelsTab';
 import { ConfirmDialog } from './ConfirmDialog';
 
 export function PropertyPanel() {
@@ -68,8 +69,8 @@ export function PropertyPanel() {
           </button>
         </div>
 
-        {/* Tabs (only for non-ghost concepts) */}
-        {selectedConcept && !isGhostConcept && (
+        {/* Tabs (for non-ghost concepts and relationships) */}
+        {((selectedConcept && !isGhostConcept) || selectedRelationship) && (
           <div className="property-panel-tabs">
             <button
               className={`property-panel-tab ${activeTab === 'properties' ? 'active' : ''}`}
@@ -98,12 +99,15 @@ export function PropertyPanel() {
           {selectedConcept && !isGhostConcept && activeTab === 'models' && (
             <ModelsTab conceptId={selectedConceptId!} />
           )}
-          {selectedRelationship && (
+          {selectedRelationship && activeTab === 'properties' && (
             <PropertiesTab
               ref={propertiesRef}
               relationshipId={selectedRelationshipId!}
               onDirtyChange={setHasUnsavedChanges}
             />
+          )}
+          {selectedRelationship && activeTab === 'models' && (
+            <RelationshipModelsTab relationshipId={selectedRelationshipId!} />
           )}
         </div>
       </div>

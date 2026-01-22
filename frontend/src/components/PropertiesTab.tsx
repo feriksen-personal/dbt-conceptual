@@ -403,6 +403,7 @@ const RelationshipProperties = forwardRef<PropertiesTabHandle, RelationshipPrope
   // Store original relationship state to detect changes
   const [originalRelationship, setOriginalRelationship] = useState<Relationship | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDomainPickerOpen, setIsDomainPickerOpen] = useState(false);
 
   // Reset original when relationship ID changes or after save
   useEffect(() => {
@@ -410,6 +411,19 @@ const RelationshipProperties = forwardRef<PropertiesTabHandle, RelationshipPrope
       setOriginalRelationship({ ...relationship, domains: [...relationship.domains] });
     }
   }, [relationshipId]); // Only reset on ID change
+
+  // Close domain picker when clicking outside
+  useEffect(() => {
+    if (!isDomainPickerOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.domain-field-container')) {
+        setIsDomainPickerOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isDomainPickerOpen]);
 
   if (!relationship) return null;
 
@@ -538,25 +552,82 @@ const RelationshipProperties = forwardRef<PropertiesTabHandle, RelationshipPrope
         </select>
       </div>
 
-      {/* Domains (multi-select) */}
+      {/* Domains (multi-select with tags) */}
       <div className="property-field">
         <label className="property-label">Domains</label>
-        <div className="property-help">Select all domains this relationship crosses</div>
-        {Object.keys(domains).map((domainId) => (
-          <label key={domainId} className="property-checkbox">
-            <input
-              type="checkbox"
-              checked={relationship.domains.includes(domainId)}
-              onChange={(e) => {
-                const newDomains = e.target.checked
-                  ? [...relationship.domains, domainId]
-                  : relationship.domains.filter((d) => d !== domainId);
-                handleChange('domains', newDomains);
-              }}
-            />
-            {domains[domainId].display_name}
-          </label>
-        ))}
+        <div className="domain-field-container" style={{ position: 'relative' }}>
+          <div className="domain-tags-container">
+            {relationship.domains.map((domainId) => {
+              const domainData = domains[domainId];
+              if (!domainData) return null;
+              const tagColor = domainData.color || '#4a9eff';
+              const textColor = getContrastTextColor(tagColor);
+              return (
+                <div
+                  key={domainId}
+                  className="domain-tag"
+                  style={{ backgroundColor: tagColor, color: textColor }}
+                >
+                  <span>{domainData.display_name}</span>
+                  <button
+                    className="domain-tag-remove"
+                    onClick={() => {
+                      const newDomains = relationship.domains.filter((d) => d !== domainId);
+                      handleChange('domains', newDomains);
+                    }}
+                    title="Remove domain"
+                    style={{ color: textColor }}
+                  >
+                    {'\u00D7'}
+                  </button>
+                </div>
+              );
+            })}
+            {/* Add domain button */}
+            {Object.keys(domains).some((d) => !relationship.domains.includes(d)) && (
+              <button
+                className="add-domain-btn"
+                onClick={() => setIsDomainPickerOpen(true)}
+                title="Add domain"
+              >
+                +
+              </button>
+            )}
+            {relationship.domains.length === 0 && (
+              <button
+                className="add-domain-btn-empty"
+                onClick={() => setIsDomainPickerOpen(true)}
+              >
+                <span>+</span>
+                <span>Add domain</span>
+              </button>
+            )}
+          </div>
+
+          {isDomainPickerOpen && (
+            <div className="domain-picker">
+              {Object.entries(domains)
+                .filter(([domainId]) => !relationship.domains.includes(domainId))
+                .map(([domainId, domainData]) => (
+                  <button
+                    key={domainId}
+                    className="domain-picker-option"
+                    onClick={() => {
+                      const newDomains = [...relationship.domains, domainId];
+                      handleChange('domains', newDomains);
+                      setIsDomainPickerOpen(false);
+                    }}
+                  >
+                    <span
+                      className="domain-picker-color"
+                      style={{ backgroundColor: domainData.color || '#4a9eff' }}
+                    />
+                    <span>{domainData.display_name}</span>
+                  </button>
+                ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Owner */}
