@@ -1,8 +1,8 @@
-<svg width="900" height="280" viewBox="0 0 900 280" xmlns="http://www.w3.org/2000/svg">
-  <rect width="900" height="280" fill="#f5f6f8"/>
+<svg width="900" height="380" viewBox="0 0 900 380" xmlns="http://www.w3.org/2000/svg">
+  <rect width="900" height="380" fill="#f5f6f8"/>
 
   <!-- Customer Concept Node (left) -->
-  <g transform="translate(50, 100)">
+  <g transform="translate(50, 150)">
     <rect x="0" y="0" width="140" height="80" rx="10" fill="#ffffff" stroke="#e5e7eb" stroke-width="1"/>
     <rect x="0" y="0" width="3" height="80" rx="1.5" fill="#4a9eff"/>
 
@@ -16,7 +16,7 @@
   </g>
 
   <!-- Order Concept Node (center) -->
-  <g transform="translate(380, 100)">
+  <g transform="translate(380, 150)">
     <rect x="0" y="0" width="140" height="80" rx="10" fill="#ffffff" stroke="#e5e7eb" stroke-width="1"/>
     <rect x="0" y="0" width="3" height="80" rx="1.5" fill="#ff9800"/>
 
@@ -29,8 +29,36 @@
     </g>
   </g>
 
+  <!-- Contact Concept Node (under Order) -->
+  <g transform="translate(380, 280)">
+    <rect x="0" y="0" width="140" height="80" rx="10" fill="#ffffff" stroke="#e5e7eb" stroke-width="1"/>
+    <rect x="0" y="0" width="3" height="80" rx="1.5" fill="#9c27b0"/>
+
+    <text x="70" y="35" text-anchor="middle" font-family="Inter, sans-serif" font-size="14" font-weight="600" fill="#1a1a2e">Contact</text>
+
+    <g transform="translate(15, 50)">
+      <rect x="0" y="0" width="28" height="22" rx="3" fill="#e8f4ff"/>
+      <text x="14" y="15" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#4a9eff">3</text>
+      <text x="38" y="14" font-family="Inter, sans-serif" font-size="9" font-weight="500" fill="#666666" letter-spacing="0.3">PARTY</text>
+    </g>
+  </g>
+
+  <!-- Warehouse Concept Node (above Product) -->
+  <g transform="translate(710, 20)">
+    <rect x="0" y="0" width="140" height="80" rx="10" fill="#ffffff" stroke="#e5e7eb" stroke-width="1"/>
+    <rect x="0" y="0" width="3" height="80" rx="1.5" fill="#00bcd4"/>
+
+    <text x="70" y="35" text-anchor="middle" font-family="Inter, sans-serif" font-size="14" font-weight="600" fill="#1a1a2e">Warehouse</text>
+
+    <g transform="translate(15, 50)">
+      <rect x="0" y="0" width="28" height="22" rx="3" fill="#e8f4ff"/>
+      <text x="14" y="15" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#4a9eff">2</text>
+      <text x="38" y="14" font-family="Inter, sans-serif" font-size="9" font-weight="500" fill="#666666" letter-spacing="0.3">LOCATION</text>
+    </g>
+  </g>
+
   <!-- Product Concept Node (right) -->
-  <g transform="translate(710, 100)">
+  <g transform="translate(710, 150)">
     <rect x="0" y="0" width="140" height="80" rx="10" fill="#ffffff" stroke="#e5e7eb" stroke-width="1"/>
     <rect x="0" y="0" width="3" height="80" rx="1.5" fill="#4caf50"/>
 
@@ -43,47 +71,82 @@
     </g>
   </g>
 
-  <!-- Relationship: Customer → Order -->
+  <!-- Relationship: Customer → Order (1:N) -->
   <g>
-    <!-- Straight line -->
-    <line x1="190" y1="140" x2="368" y2="140" stroke="#94a3b8" stroke-width="1.5"/>
+    <line x1="190" y1="190" x2="368" y2="190" stroke="#94a3b8" stroke-width="1.5"/>
 
     <!-- Customer end: Exactly One (||) -->
-    <line x1="195" y1="134" x2="195" y2="146" stroke="#94a3b8" stroke-width="1.5"/>
-    <line x1="201" y1="134" x2="201" y2="146" stroke="#94a3b8" stroke-width="1.5"/>
+    <line x1="195" y1="184" x2="195" y2="196" stroke="#94a3b8" stroke-width="1.5"/>
+    <line x1="201" y1="184" x2="201" y2="196" stroke="#94a3b8" stroke-width="1.5"/>
 
     <!-- Order end: Zero or Many (○⋔) -->
-    <circle cx="342" cy="140" r="4" fill="#f5f6f8" stroke="#94a3b8" stroke-width="1.5"/>
-    <line x1="348" y1="140" x2="368" y2="130" stroke="#94a3b8" stroke-width="1.5"/>
-    <line x1="348" y1="140" x2="368" y2="140" stroke="#94a3b8" stroke-width="1.5"/>
-    <line x1="348" y1="140" x2="368" y2="150" stroke="#94a3b8" stroke-width="1.5"/>
+    <circle cx="342" cy="190" r="4" fill="#f5f6f8" stroke="#94a3b8" stroke-width="1.5"/>
+    <line x1="348" y1="190" x2="368" y2="180" stroke="#94a3b8" stroke-width="1.5"/>
+    <line x1="348" y1="190" x2="368" y2="190" stroke="#94a3b8" stroke-width="1.5"/>
+    <line x1="348" y1="190" x2="368" y2="200" stroke="#94a3b8" stroke-width="1.5"/>
 
     <!-- Verb label -->
-    <rect x="255" y="130" width="50" height="18" fill="#f5f6f8"/>
-    <text x="280" y="144" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="500" fill="#1a1a2e">places</text>
+    <rect x="255" y="180" width="50" height="18" fill="#f5f6f8"/>
+    <text x="280" y="194" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="500" fill="#1a1a2e">places</text>
   </g>
 
-  <!-- Relationship: Order → Product -->
+  <!-- Relationship: Customer → Contact (1:N) -->
   <g>
-    <!-- Straight line -->
-    <line x1="520" y1="140" x2="698" y2="140" stroke="#94a3b8" stroke-width="1.5"/>
+    <line x1="190" y1="220" x2="368" y2="320" stroke="#94a3b8" stroke-width="1.5"/>
 
-    <!-- Order end: Exactly One (||) -->
-    <line x1="525" y1="134" x2="525" y2="146" stroke="#94a3b8" stroke-width="1.5"/>
-    <line x1="531" y1="134" x2="531" y2="146" stroke="#94a3b8" stroke-width="1.5"/>
+    <!-- Customer end: Exactly One (||) - angled -->
+    <line x1="192" y1="214" x2="198" y2="224" stroke="#94a3b8" stroke-width="1.5"/>
+    <line x1="198" y1="212" x2="204" y2="222" stroke="#94a3b8" stroke-width="1.5"/>
 
-    <!-- Product end: Zero or Many (○⋔) -->
-    <circle cx="672" cy="140" r="4" fill="#f5f6f8" stroke="#94a3b8" stroke-width="1.5"/>
-    <line x1="678" y1="140" x2="698" y2="130" stroke="#94a3b8" stroke-width="1.5"/>
-    <line x1="678" y1="140" x2="698" y2="140" stroke="#94a3b8" stroke-width="1.5"/>
-    <line x1="678" y1="140" x2="698" y2="150" stroke="#94a3b8" stroke-width="1.5"/>
+    <!-- Contact end: Zero or Many (○⋔) - angled -->
+    <circle cx="352" cy="308" r="4" fill="#f5f6f8" stroke="#94a3b8" stroke-width="1.5"/>
+    <line x1="356" y1="312" x2="368" y2="310" stroke="#94a3b8" stroke-width="1.5"/>
+    <line x1="358" y1="310" x2="372" y2="320" stroke="#94a3b8" stroke-width="1.5"/>
+    <line x1="356" y1="314" x2="364" y2="328" stroke="#94a3b8" stroke-width="1.5"/>
 
     <!-- Verb label -->
-    <rect x="578" y="130" width="60" height="18" fill="#f5f6f8"/>
-    <text x="608" y="144" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="500" fill="#1a1a2e">contains</text>
+    <rect x="240" y="260" width="36" height="18" fill="#f5f6f8"/>
+    <text x="258" y="274" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="500" fill="#1a1a2e">has</text>
+  </g>
+
+  <!-- Relationship: Order → Product (1:N) -->
+  <g>
+    <line x1="520" y1="190" x2="698" y2="190" stroke="#94a3b8" stroke-width="1.5"/>
+
+    <!-- Order end: Exactly One (||) -->
+    <line x1="525" y1="184" x2="525" y2="196" stroke="#94a3b8" stroke-width="1.5"/>
+    <line x1="531" y1="184" x2="531" y2="196" stroke="#94a3b8" stroke-width="1.5"/>
+
+    <!-- Product end: Zero or Many (○⋔) -->
+    <circle cx="672" cy="190" r="4" fill="#f5f6f8" stroke="#94a3b8" stroke-width="1.5"/>
+    <line x1="678" y1="190" x2="698" y2="180" stroke="#94a3b8" stroke-width="1.5"/>
+    <line x1="678" y1="190" x2="698" y2="190" stroke="#94a3b8" stroke-width="1.5"/>
+    <line x1="678" y1="190" x2="698" y2="200" stroke="#94a3b8" stroke-width="1.5"/>
+
+    <!-- Verb label -->
+    <rect x="578" y="180" width="60" height="18" fill="#f5f6f8"/>
+    <text x="608" y="194" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="500" fill="#1a1a2e">contains</text>
+  </g>
+
+  <!-- Relationship: Warehouse → Product (1:N) -->
+  <g>
+    <line x1="780" y1="100" x2="780" y2="138" stroke="#94a3b8" stroke-width="1.5"/>
+
+    <!-- Warehouse end: Exactly One (||) -->
+    <line x1="774" y1="105" x2="786" y2="105" stroke="#94a3b8" stroke-width="1.5"/>
+    <line x1="774" y1="111" x2="786" y2="111" stroke="#94a3b8" stroke-width="1.5"/>
+
+    <!-- Product end: Zero or Many (○⋔) -->
+    <circle cx="780" cy="128" r="4" fill="#f5f6f8" stroke="#94a3b8" stroke-width="1.5"/>
+    <line x1="780" y1="134" x2="770" y2="150" stroke="#94a3b8" stroke-width="1.5"/>
+    <line x1="780" y1="134" x2="780" y2="150" stroke="#94a3b8" stroke-width="1.5"/>
+    <line x1="780" y1="134" x2="790" y2="150" stroke="#94a3b8" stroke-width="1.5"/>
+
+    <!-- Verb label -->
+    <rect x="790" y="112" width="46" height="18" fill="#f5f6f8"/>
+    <text x="813" y="126" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="500" fill="#1a1a2e">stores</text>
   </g>
 
   <!-- Legend -->
-  <text x="450" y="250" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#888888">Canvas View: Customer (1) places Orders (N) contains Products (N)</text>
-  <text x="450" y="265" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#888888">Straight lines for documentation diagrams</text>
+  <text x="450" y="370" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#888888">Canvas View: Multiple concepts with crow's foot cardinality notation</text>
 </svg>
