@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/logo-banner-light.svg" alt="dbt-conceptual" width="480">
+  <img src="docs/assets/logo-banner-light.svg?v=2" alt="dbt-conceptual" width="480">
 </p>
 
 > *Conceptual modeling without the ceremony. Shared vocabulary for data teams who don't have time for meetings.*
@@ -9,8 +9,8 @@
 [![PyPI version](https://img.shields.io/pypi/v/dbt-conceptual.svg)](https://pypi.org/project/dbt-conceptual/)
 [![Python](https://img.shields.io/badge/python-≥3.11-blue.svg)](https://pypi.org/project/dbt-conceptual/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![CI](https://github.com/feriksen-personal/dbt-conceptual/actions/workflows/ci.yml/badge.svg)](https://github.com/feriksen-personal/dbt-conceptual/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/feriksen-personal/dbt-conceptual/branch/main/graph/badge.svg)](https://codecov.io/gh/feriksen-personal/dbt-conceptual)
+[![CI](https://github.com/dbt-conceptual/dbt-conceptual/actions/workflows/ci.yml/badge.svg)](https://github.com/dbt-conceptual/dbt-conceptual/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/dbt-conceptual/dbt-conceptual/branch/main/graph/badge.svg)](https://codecov.io/gh/dbt-conceptual/dbt-conceptual)
 
 ---
 
@@ -126,22 +126,22 @@ pip install dbt-conceptual
 
 ```bash
 # Initialize conceptual model
-dbt-conceptual init
+dcm init
 # Creates models/conceptual/conceptual.yml
 
 # Define your business concepts (edit the file)
 
 # View coverage
-dbt-conceptual status
+dcm status
 
 # Launch interactive UI
-dbt-conceptual serve
+dcm serve
 
 # Validate in CI
-dbt-conceptual validate
+dcm validate
 
 # Export coverage report
-dbt-conceptual export --type coverage --format html -o coverage.html
+dcm export --type coverage --format html -o coverage.html
 ```
 
 ---
@@ -222,13 +222,13 @@ models:
 
 ```bash
 # Check everything links up
-dbt-conceptual validate
+dcm validate
 
 # See coverage
-dbt-conceptual status
+dcm status
 
 # Open visual editor
-dbt-conceptual serve
+dcm serve
 ```
 
 ---
@@ -254,7 +254,7 @@ See which concepts are implemented at each layer:
 
 ```bash
 pip install dbt-conceptual[serve]
-dbt-conceptual serve
+dcm serve
 ```
 
 <!-- ASSET: docs/assets/ui-screenshot.png — Full UI with canvas, selected concept, and property panel -->
@@ -270,7 +270,7 @@ dbt-conceptual serve
 Want to explore before committing? Run demo mode:
 
 ```bash
-dbt-conceptual serve --demo
+dcm serve --demo
 ```
 
 Launches the UI with a self-contained example project — four concepts, relationships, and models across bronze/silver/gold layers. No dbt project required. Changes are not persisted; everything resets when you press Ctrl+C.
@@ -288,7 +288,7 @@ Catch drift before it ships:
 # .github/workflows/ci.yml
 - name: Validate conceptual model
   run: |
-    dbt-conceptual validate --no-drafts --format markdown >> $GITHUB_STEP_SUMMARY
+    dcm validate --no-drafts --format markdown >> $GITHUB_STEP_SUMMARY
 ```
 
 The `--no-drafts` flag fails if any concepts or relationships are incomplete — useful for enforcing coverage standards. Use `--format markdown` to show validation results as a formatted job summary.
@@ -310,7 +310,7 @@ Use `--format markdown` to create rich visual summaries in GitHub Actions:
 # .github/workflows/conceptual-diff.yml
 - name: Show conceptual changes
   run: |
-    dbt-conceptual diff --base main --format markdown >> $GITHUB_STEP_SUMMARY
+    dcm diff --base main --format markdown >> $GITHUB_STEP_SUMMARY
 ```
 
 The output renders as formatted tables with emoji indicators in the Actions UI.
@@ -340,40 +340,40 @@ See [Validation Guide](docs/validation.md) for resolution steps.
 **Bottom-up:** Already have a dbt project with `meta.concept` tags? Generate stubs:
 
 ```bash
-dbt-conceptual sync --create-stubs
+dcm sync --create-stubs
 
 # Output:
 # Created 12 concept stubs
 # Created 8 relationship stubs
-# Run 'dbt-conceptual status' to see what needs enrichment
+# Run 'dcm status' to see what needs enrichment
 ```
 
 ### 📤 Export Formats
 
 ```bash
 # Coverage report
-dbt-conceptual export --type coverage --format html -o coverage.html
-dbt-conceptual export --type coverage --format markdown >> $GITHUB_STEP_SUMMARY
-dbt-conceptual export --type coverage --format json -o coverage.json
+dcm export --type coverage --format html -o coverage.html
+dcm export --type coverage --format markdown >> $GITHUB_STEP_SUMMARY
+dcm export --type coverage --format json -o coverage.json
 
 # Bus matrix
-dbt-conceptual export --type bus-matrix --format html -o bus-matrix.html
+dcm export --type bus-matrix --format html -o bus-matrix.html
 
 # Status summary
-dbt-conceptual export --type status --format markdown >> $GITHUB_STEP_SUMMARY
+dcm export --type status --format markdown >> $GITHUB_STEP_SUMMARY
 
 # Orphan models
-dbt-conceptual export --type orphans --format json | jq '.count'
+dcm export --type orphans --format json | jq '.count'
 
 # Validation results
-dbt-conceptual export --type validation --format markdown
+dcm export --type validation --format markdown
 
 # Diagram (SVG)
-dbt-conceptual export --type diagram --format svg -o diagram.svg
+dcm export --type diagram --format svg -o diagram.svg
 
 # Diff against base branch (CI/CD)
-dbt-conceptual export --type diff --format markdown --base main >> $GITHUB_STEP_SUMMARY
-dbt-conceptual export --type diff --format json --base origin/main | jq '.has_changes'
+dcm export --type diff --format markdown --base main >> $GITHUB_STEP_SUMMARY
+dcm export --type diff --format json --base origin/main | jq '.has_changes'
 ```
 
 **Export Matrix:**
@@ -391,16 +391,16 @@ dbt-conceptual export --type diff --format json --base origin/main | jq '.has_ch
 
 ```bash
 # PR review — what changed?
-dbt-conceptual export --type diff --format markdown --base main
+dcm export --type diff --format markdown --base main
 
 # CI gate — any validation errors?
-dbt-conceptual export --type validation --format json | jq -e '.passed'
+dcm export --type validation --format json | jq -e '.passed'
 
 # Dashboard — coverage report
-dbt-conceptual export --type coverage --format html -o coverage.html
+dcm export --type coverage --format html -o coverage.html
 
 # Documentation — conceptual diagram
-dbt-conceptual export --type diagram --format svg -o model.svg
+dcm export --type diagram --format svg -o model.svg
 ```
 
 <!-- ASSET: docs/assets/bus-matrix.png — Kimball-style bus matrix showing dimensional coverage -->
@@ -442,17 +442,17 @@ vars:
 
 | Command | Description |
 | ------- | ----------- |
-| `dbt-conceptual init` | Initialize conceptual.yml |
-| `dbt-conceptual status` | Show coverage by domain |
-| `dbt-conceptual orphans` | List untagged models (no meta.concept or meta.realizes) |
-| `dbt-conceptual validate` | Validate model integrity |
-| `dbt-conceptual validate --no-drafts` | Fail CI if drafts/stubs exist |
-| `dbt-conceptual sync` | Sync from dbt project |
-| `dbt-conceptual sync --create-stubs` | Create stubs for undefined concepts |
-| `dbt-conceptual serve` | Launch web UI |
-| `dbt-conceptual export --type <type> --format <fmt>` | Export reports (see matrix above) |
-| `dbt-conceptual diff` | Show changes vs HEAD |
-| `dbt-conceptual diff --base main` | Show changes vs specified base |
+| `dcm init` | Initialize conceptual.yml |
+| `dcm status` | Show coverage by domain |
+| `dcm orphans` | List untagged models (no meta.concept or meta.realizes) |
+| `dcm validate` | Validate model integrity |
+| `dcm validate --no-drafts` | Fail CI if drafts/stubs exist |
+| `dcm sync` | Sync from dbt project |
+| `dcm sync --create-stubs` | Create stubs for undefined concepts |
+| `dcm serve` | Launch web UI |
+| `dcm export --type <type> --format <fmt>` | Export reports (see matrix above) |
+| `dcm diff` | Show changes vs HEAD |
+| `dcm diff --base main` | Show changes vs specified base |
 
 ---
 
@@ -472,7 +472,7 @@ Contributions welcome. See [CONTRIBUTING.md](CONTRIBUTING.md).
 PRs that work > PRs with extensive documentation about why they might work.
 
 ```bash
-git clone https://github.com/feriksen-personal/dbt-conceptual.git
+git clone https://github.com/dbt-conceptual/dbt-conceptual.git
 cd dbt-conceptual
 pip install -e ".[dev]"
 pytest
