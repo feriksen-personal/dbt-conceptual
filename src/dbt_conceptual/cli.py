@@ -10,6 +10,7 @@ from dbt_conceptual.config import Config
 from dbt_conceptual.differ import ConceptualDiff
 from dbt_conceptual.parser import StateBuilder
 from dbt_conceptual.state import ConceptState, ProjectState
+from dbt_conceptual.tag_applier import TagApplier
 from dbt_conceptual.validator import Severity, Validator
 
 console = Console()
@@ -521,6 +522,137 @@ def _output_human_format(
         f"{summary['warnings']} warnings, "
         f"{summary['info']} info"
     )
+
+
+@main.command()
+@click.option(
+    "--project-dir",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    default=None,
+    help="Path to dbt project directory (default: current directory)",
+)
+@click.option(
+    "--propagate-tags",
+    is_flag=True,
+    help="Propagate domain and owner tags from concepts to dbt model files",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Preview changes without writing files",
+)
+@click.option(
+    "--models",
+    multiple=True,
+    help="Apply only to specific models (can be specified multiple times)",
+)
+def apply(
+    project_dir: Optional[Path],
+    propagate_tags: bool,
+    dry_run: bool,
+    models: tuple[str, ...],
+) -> None:
+    """Apply changes to dbt model files.
+
+    Currently supports tag propagation from conceptual model to dbt model YAML files.
+
+    Examples:
+
+        # Preview tag changes
+        dbt-conceptual apply --propagate-tags --dry-run
+
+        # Apply tag changes
+        dbt-conceptual apply --propagate-tags
+
+        # Apply to specific models
+        dbt-conceptual apply --propagate-tags --models dim_customer --models fact_orders
+    """
+    if not propagate_tags:
+        console.print(
+            "[yellow]No action specified. Use --propagate-tags to apply tags.[/yellow]"
+        )
+        console.print("\nAvailable actions:")
+        console.print("  --propagate-tags    Propagate domain/owner tags from concepts")
+        return
+
+    # Load configuration
+    config = Config.load(project_dir=project_dir)
+
+    # Check if tag validation is enabled
+    if not config.validation.tag_validation.enabled:
+        console.print(
+            "[yellow]Warning: tag_validation is not enabled in dbt_project.yml[/yellow]"
+        )
+        console.print("Add the following to enable tag validation:\n")
+        console.print("  vars:")
+        console.print("    dbt_conceptual:")
+        console.print("      validation:")
+        console.print("        tag_validation:")
+        console.print("          enabled: true")
+        console.print()
+
+    # Check if conceptual.yml exists
+    if not config.conceptual_file.exists():
+        console.print(
+            f"[red]Error: conceptual.yml not found at {config.conceptual_file}[/red]"
+        )
+        console.print("\nRun 'dbt-conceptual init' to create it.")
+        raise click.Abort()
+
+    # Build state
+    builder = StateBuilder(config)
+    state = builder.build()
+
+    # Compute changes
+    applier = TagApplier(config, state)
+    model_list = list(models) if models else None
+    changes = applier.compute_changes(model_list)
+
+    if not changes:
+        console.print("[green]No tag changes needed.[/green]")
+        return
+
+    # Display changes
+    if dry_run:
+        console.print(f"[bold]Would modify {len(changes)} model(s):[/bold]\n")
+    else:
+        console.print(
+            f"[bold]Applying tag changes to {len(changes)} model(s):[/bold]\n"
+        )
+
+    for change in changes:
+        rel_path = change.file_path.relative_to(config.project_dir)
+        console.print(f"[cyan]{rel_path}[/cyan] ({change.model_name})")
+
+        if change.action == "add":
+            console.print(f"  [green]+ tags: {change.expected_tags}[/green]")
+        else:
+            current_display = (
+                [f"domain:{t}" for t in change.current_tags if t]
+                if change.current_tags
+                else ["(none)"]
+            )
+            console.print(
+                f"  [yellow]~ tags: {current_display} -> {change.expected_tags}[/yellow]"
+            )
+
+    if dry_run:
+        console.print("\n[dim]Run without --dry-run to apply changes.[/dim]")
+        return
+
+    # Apply changes
+    result = applier.apply(changes, dry_run=False)
+
+    if result.errors:
+        console.print("\n[red]Errors:[/red]")
+        for error in result.errors:
+            console.print(f"  {error}")
+
+    if result.modified_files:
+        console.print(
+            f"\n[green]Modified {len(result.modified_files)} file(s).[/green]"
+        )
+        console.print("\n[dim]Run 'git diff' to review changes.[/dim]")
 
 
 @main.command()
