@@ -1267,10 +1267,9 @@ def serve(project_dir: Optional[Path], host: str, port: int, demo: bool) -> None
         from dbt_conceptual.server import run_server
     except ImportError:
         console.print(
-            "[red]Error: Flask is not installed. Install with:[/red]\n"
-            "  pip install dbt-conceptual[serve]\n"
-            "or:\n"
-            "  pip install flask"
+            "[red]Error: Server dependencies not installed.[/red]\n\n"
+            "Install with:\n"
+            "  pip install dbt-conceptual[serve]"
         )
         return
 
