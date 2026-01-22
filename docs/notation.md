@@ -74,6 +74,14 @@ Many-to-many relationships are modeled using a bridge (link) table. Each entity 
 
 ---
 
+### Canvas View (Multiple Relationships)
+
+A larger canvas example showing multiple concepts with curved relationship lines:
+
+![Canvas View](assets/notation/canvas-view.svg)
+
+---
+
 ### Draft Relationship Example
 
 ![Draft Relationship](assets/notation/draft-relationship.svg)
