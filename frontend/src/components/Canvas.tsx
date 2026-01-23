@@ -148,8 +148,9 @@ function CanvasInner() {
   }, [initialEdges, setEdges]);
 
   // Handle node position changes (updates local state during drag)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleNodesChange = useCallback(
-    (changes: any) => {
+    (changes: any[]) => {
       onNodesChange(changes);
 
       // Extract position changes to keep store in sync
@@ -176,6 +177,7 @@ function CanvasInner() {
   }, [saveLayout]);
 
   // Handle node selection
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleNodeClick = useCallback(
     (_event: any, node: any) => {
       selectConcept(node.id);
@@ -184,6 +186,7 @@ function CanvasInner() {
   );
 
   // Handle edge selection
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleEdgeClick = useCallback(
     (_event: any, edge: any) => {
       selectRelationship(edge.id);

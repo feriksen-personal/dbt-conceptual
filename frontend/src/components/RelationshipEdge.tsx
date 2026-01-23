@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { getBezierPath } from '@xyflow/react';
+import { getBezierPath, type Position } from '@xyflow/react';
 import type { Relationship, RelationshipStatus } from '../types';
 
 export type RelationshipEdgeData = {
@@ -7,18 +7,40 @@ export type RelationshipEdgeData = {
   relationshipId: string;
 };
 
-export const RelationshipEdge = memo((props: any) => {
-  const relationship: Relationship | undefined = props.data?.relationship;
+interface RelationshipEdgeProps {
+  id: string;
+  data?: RelationshipEdgeData;
+  sourceX: number;
+  sourceY: number;
+  sourcePosition: Position;
+  targetX: number;
+  targetY: number;
+  targetPosition: Position;
+  markerEnd?: string;
+}
+
+export const RelationshipEdge = memo(({
+  id,
+  data,
+  sourceX,
+  sourceY,
+  sourcePosition,
+  targetX,
+  targetY,
+  targetPosition,
+  markerEnd,
+}: RelationshipEdgeProps) => {
+  const relationship: Relationship | undefined = data?.relationship;
 
   if (!relationship) return null;
 
   const [edgePath, labelX, labelY] = getBezierPath({
-    sourceX: props.sourceX,
-    sourceY: props.sourceY,
-    sourcePosition: props.sourcePosition,
-    targetX: props.targetX,
-    targetY: props.targetY,
-    targetPosition: props.targetPosition,
+    sourceX,
+    sourceY,
+    sourcePosition,
+    targetX,
+    targetY,
+    targetPosition,
   });
 
   // Check validation status
@@ -50,14 +72,14 @@ export const RelationshipEdge = memo((props: any) => {
     <>
       {/* Edge path */}
       <path
-        id={props.id}
+        id={id}
         className={`react-flow__edge-path ${isError ? 'invalid' : ''} ${isWarning ? 'warning' : ''}`}
         d={edgePath}
         stroke={statusColor}
         strokeWidth={2}
         strokeDasharray={strokeDasharray}
         fill="none"
-        markerEnd={props.markerEnd}
+        markerEnd={markerEnd}
       />
 
       {/* Label */}

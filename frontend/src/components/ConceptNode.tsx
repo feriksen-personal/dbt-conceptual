@@ -8,8 +8,12 @@ export type ConceptNodeData = {
   conceptId: string;
 };
 
-export const ConceptNode = memo((props: any) => {
-  const concept: Concept = props.data.concept;
+interface ConceptNodeProps {
+  data: ConceptNodeData;
+}
+
+export const ConceptNode = memo(({ data }: ConceptNodeProps) => {
+  const concept: Concept = data.concept;
   const domains = useStore((state) => state.domains);
 
   // Get domain color if concept has a domain
