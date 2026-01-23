@@ -1,0 +1,49 @@
+# Codecov Configuration
+# https://docs.codecov.io/docs/codecov-yaml
+
+coverage:
+  status:
+    project:
+      default:
+        # Only report coverage status if tests actually ran
+        informational: true
+        target: auto
+        threshold: 1%
+    patch:
+      default:
+        informational: true
+        target: auto
+        threshold: 1%
+
+# Ignore non-source files
+ignore:
+  - "tests/**/*"
+  - "examples/**/*"
+  - "docs/**/*"
+  - "frontend/**/*"
+  - "**/__pycache__/**"
+  - "**/conftest.py"
+
+comment:
+  layout: "header, diff, flags, files"
+  behavior: default
+  require_changes: true
+
+# Flag management
+flags:
+  python-3.9:
+    paths:
+      - src/
+    carryforward: true
+  python-3.10:
+    paths:
+      - src/
+    carryforward: true
+  python-3.11:
+    paths:
+      - src/
+    carryforward: true
+  python-3.12:
+    paths:
+      - src/
+    carryforward: true
