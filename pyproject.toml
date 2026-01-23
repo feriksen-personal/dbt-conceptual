@@ -71,10 +71,10 @@ dbt-conceptual = "dbt_conceptual.cli:main"
 dcm = "dbt_conceptual.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/feriksen-personal/dbt-conceptual"
-Repository = "https://github.com/feriksen-personal/dbt-conceptual"
-Issues = "https://github.com/feriksen-personal/dbt-conceptual/issues"
-Changelog = "https://github.com/feriksen-personal/dbt-conceptual/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/dbt-conceptual/dbt-conceptual"
+Repository = "https://github.com/dbt-conceptual/dbt-conceptual"
+Issues = "https://github.com/dbt-conceptual/dbt-conceptual/issues"
+Changelog = "https://github.com/dbt-conceptual/dbt-conceptual/blob/main/CHANGELOG.md"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/dbt_conceptual"]

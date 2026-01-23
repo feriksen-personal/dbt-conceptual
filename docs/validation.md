@@ -206,13 +206,13 @@ The same validation logic runs via CLI:
 
 ```bash
 # Basic validation
-dbt-conceptual validate
+dcm validate
 
 # Fail if any drafts or stubs exist
-dbt-conceptual validate --no-drafts
+dcm validate --no-drafts
 
 # Output as markdown (for CI summaries)
-dbt-conceptual validate --format markdown
+dcm validate --format markdown
 ```
 
 **Exit codes:**

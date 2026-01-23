@@ -1,4 +1,4 @@
-# dbt-conceptual CLI Reference
+# dcm CLI Reference
 
 ## Global Options
 

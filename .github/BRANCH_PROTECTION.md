@@ -28,7 +28,7 @@ Configure these required status checks in GitHub Settings > Branches > Branch pr
 
 ## How to Configure
 
-1. Go to: `https://github.com/feriksen-personal/dbt-conceptual/settings/branches`
+1. Go to: `https://github.com/dbt-conceptual/dbt-conceptual/settings/branches`
 2. Click "Add branch protection rule" or edit existing rule
 3. Branch name pattern: `main`
 4. Enable settings as documented above

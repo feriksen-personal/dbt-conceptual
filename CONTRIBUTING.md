@@ -42,7 +42,7 @@ Feature requests are welcome! Please:
 
 ```bash
 # Clone your fork
-git clone https://github.com/feriksen-personal/dbt-conceptual.git
+git clone https://github.com/dbt-conceptual/dbt-conceptual.git
 cd dbt-conceptual
 
 # Create virtual environment
@@ -123,7 +123,7 @@ Maintainers handle releases. The process:
 
 ## Questions?
 
-- Open a [Discussion](https://github.com/feriksen-personal/dbt-conceptual/discussions)
+- Open a [Discussion](https://github.com/dbt-conceptual/dbt-conceptual/discussions)
 - Tag maintainers in issues if stuck
 
 ---

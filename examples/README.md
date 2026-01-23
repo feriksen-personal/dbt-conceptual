@@ -16,10 +16,10 @@ A minimal e-commerce example showing:
 cd sample-dbt-project
 
 # View status
-dbt-conceptual status
+dcm status
 
 # Validate (for CI)
-dbt-conceptual validate
+dcm validate
 ```
 
 ### Structure
