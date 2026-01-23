@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 500" width="1600" height="500">
+  <defs>
+    <linearGradient id="bg-gradient-dark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1a1a1a"/>
+      <stop offset="100%" stop-color="#141414"/>
+    </linearGradient>
+    <linearGradient id="orange-glow-dark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f5a854" stop-opacity="0.05"/>
+      <stop offset="100%" stop-color="#f5a854" stop-opacity="0.12"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1600" height="500" fill="url(#bg-gradient-dark)"/>
+  
+  <!-- Orange accent gradient (diagonal swash) -->
+  <path d="M900 -100 L1700 -100 L1700 600 L1100 600 Z" fill="url(#orange-glow-dark)"/>
+  
+  <!-- Infinity Mark (centered, scaled up) -->
+  <g transform="translate(800, 155)">
+    <!-- Left loop (conceptual - lighter orange for dark mode) -->
+    <path d="M-34 0 C-34 -20 -19 -25 0 0 C-19 25 -34 20 -34 0" 
+          stroke="#f5a854" stroke-width="7.5" fill="none" stroke-linecap="round"/>
+    <!-- Right loop (physical - lighter gray for dark mode) -->
+    <path d="M0 0 C19 25 34 20 34 0 C34 -20 19 -25 0 0" 
+          stroke="#777777" stroke-width="7.5" fill="none" stroke-linecap="round"/>
+    <!-- Flow bar -->
+    <path d="M-34 32 L34 32" 
+          stroke="#f5a854" stroke-width="6" stroke-linecap="round"/>
+  </g>
+  
+  <!-- Wordmark: dbt-conceptual (dark mode colors) -->
+  <text x="800" y="295" text-anchor="middle" font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif" font-size="48" font-weight="600" letter-spacing="-0.02em">
+    <tspan fill="#777777">dbt</tspan><tspan fill="#555555">-</tspan><tspan fill="#f5a854">conceptual</tspan>
+  </text>
+  
+  <!-- Tagline -->
+  <text x="800" y="345" text-anchor="middle" font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif" font-size="22" font-weight="400" fill="#999999">
+    Bridge conceptual models to dbt
+  </text>
+</svg>
