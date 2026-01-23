@@ -64,11 +64,11 @@ No logical model. No physical derivation. Just shared vocabulary that lives with
 
 ## Who This Is For
 
-**For architects who write code and engineers who think in systems.**
+**Architects who write code. Engineers who think in systems.**
 
-- The player-coach who advises without blocking
-- The senior engineer everyone asks "what does this table mean?"
-- The data lead who notices drift before it compounds
+- You advise without blocking
+- You're the one everyone asks "what does this table mean?"
+- You notice drift before it compounds
 
 ## Built For
 
