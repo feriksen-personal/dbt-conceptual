@@ -1,11 +1,14 @@
 """Scanner for finding dbt model files in a project."""
 
+import logging
 from collections.abc import Iterator
 from pathlib import Path
 
 import yaml
 
 from dbt_conceptual.config import Config
+
+logger = logging.getLogger(__name__)
 
 
 class DbtProjectScanner:
@@ -128,10 +131,10 @@ class DbtProjectScanner:
                 all_models.extend(models)
             except yaml.YAMLError as e:
                 # Log warning but continue scanning
-                print(f"Warning: Failed to parse {schema_file}: {e}")
+                logger.warning("Failed to parse %s: %s", schema_file, e)
             except Exception as e:
                 # Log warning but continue scanning
-                print(f"Warning: Error processing {schema_file}: {e}")
+                logger.warning("Error processing %s: %s", schema_file, e)
 
         return all_models
 
