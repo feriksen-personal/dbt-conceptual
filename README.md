@@ -11,6 +11,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CI](https://github.com/dbt-conceptual/dbt-conceptual/actions/workflows/ci.yml/badge.svg)](https://github.com/dbt-conceptual/dbt-conceptual/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/dbt-conceptual/dbt-conceptual/branch/main/graph/badge.svg)](https://codecov.io/gh/dbt-conceptual/dbt-conceptual)
+[![Docs](https://img.shields.io/badge/docs-GitBook-blue)](https://dbt-conceptual.gitbook.io/dbt-conceptual-docs/)
 
 ---
 
@@ -458,6 +459,9 @@ vars:
 
 ## Documentation
 
+**[📚 Full Documentation](https://dbt-conceptual.gitbook.io/dbt-conceptual-docs/)** — comprehensive guides, tutorials, and reference
+
+Quick links:
 - [Validation & Messages Guide](docs/validation.md) — resolving errors, warnings, ghost concepts
 - [Configuration Reference](docs/configuration.md)
 - [Export Formats](docs/exports.md)
