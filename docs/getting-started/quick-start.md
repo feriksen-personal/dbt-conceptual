@@ -57,15 +57,14 @@ models:
       concept: customer
 ```
 
-For facts that join multiple concepts:
+For facts — they're concepts too:
 
 ```yaml
-# models/gold/fact_orders.yml
+# models/gold/fct_orders.yml
 models:
-  - name: fact_orders
+  - name: fct_orders
     meta:
-      realizes:
-        - customer:places:order
+      concept: Order
 ```
 
 ## 4. Check Status

@@ -14,6 +14,7 @@
 * [Operational Conceptual Modeling](concepts/operational.md)
 * [How It Works](concepts/how-it-works.md)
 * [Layer Model](concepts/layer-model.md)
+* [Governance](concepts/governance.md)
 
 ## Guides
 

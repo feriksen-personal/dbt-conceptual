@@ -59,29 +59,42 @@ models:
       concept: customer
 ```
 
-### Relationships to Facts
+### Facts and Bridges
 
-Tag fact models with `meta.realizes` to indicate which relationships they implement:
-
-```yaml
-models:
-  - name: fact_orders
-    meta:
-      realizes:
-        - customer:places:order
-```
-
-### Bridge Tables
-
-N:M relationships often require bridge tables:
+Facts and bridges are also concepts. Tag them with `meta.concept`:
 
 ```yaml
 models:
-  - name: bridge_order_product
+  - name: fct_orders
     meta:
-      realizes:
-        - order:contains:product
+      concept: Order
+
+  - name: bridge_customer_policy
+    meta:
+      concept: CustomerPolicy
 ```
+
+Relationships between these concepts are defined in `conceptual.yml`:
+
+```yaml
+relationships:
+  - name: places
+    from: Customer
+    to: Order
+    cardinality: "1:N"
+
+  - name: has
+    from: Customer
+    to: CustomerPolicy
+    cardinality: "1:N"
+
+  - name: covers
+    from: CustomerPolicy
+    to: Policy
+    cardinality: "N:1"
+```
+
+This approach surfaces bridge tables as explicit concepts, connected via 1:N relationships rather than hidden N:M associations.
 
 ## Status Logic
 
@@ -98,15 +111,15 @@ models:
 
 | Status | Condition |
 |--------|-----------|
-| `complete` | Has domain(s) AND (not N:M OR has realization) |
-| `draft` | Missing domain OR (N:M without realization) |
+| `complete` | Both concepts have domains |
+| `draft` | One or both concepts missing domain |
 | `stub` | Missing verb |
 
 ## The Sync Process
 
 When you run `dcm sync` or use the UI:
 
-1. **Scan dbt project** — Find all models with `meta.concept` or `meta.realizes`
+1. **Scan dbt project** — Find all models with `meta.concept`
 2. **Match to definitions** — Link tagged models to defined concepts
 3. **Identify gaps** — Find references that don't exist
 4. **Create stubs** (optional) — Auto-generate placeholders for undefined concepts

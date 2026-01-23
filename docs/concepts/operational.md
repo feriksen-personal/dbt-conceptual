@@ -88,7 +88,7 @@ Enough is the point. Not everything. Enough.
 
 | | Traditional | Operational |
 |---|---|---|
-| **Location** | Confluence, Lucidchart, ERwin | `concepts.yml` in the repo |
+| **Location** | Confluence, Lucidchart, ERwin | `conceptual.yml` in the repo |
 | **Versioning** | Manual snapshots | Git history |
 | **Sync** | Hope and good intentions | CI validation |
 | **Drift detection** | "Ask Sarah. She left in March." | `dcm validate` |
@@ -189,7 +189,7 @@ Staleness isn't possible. The feedback loop is too tight.
 Start advisory. Add a minimal conceptual model. See coverage. Then decide how tight you want the guardrails.
 
 ```bash
-dcm init       # scaffold concepts.yml
+dcm init       # scaffold conceptual.yml
 dcm coverage   # see current state
 dcm validate   # check alignment
 ```

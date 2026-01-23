@@ -29,7 +29,7 @@ Silver models typically represent the first implementation of a concept — stag
 **Business-ready.** Dimensions, facts, bridges. The models analysts query.
 
 - **Detection**: Path matches `gold_paths` configuration
-- **Tagging**: `meta.concept` (dimensions) or `meta.realizes` (facts/bridges)
+- **Tagging**: `meta.concept` for all models (dimensions, facts, bridges)
 - **Visibility**: Editable in the UI
 
 Gold models are the primary implementation layer for your conceptual model.
@@ -78,26 +78,36 @@ Domain: Party
 
 A concept is `complete` when it has at least one implementing model. The layer breakdown shows depth of implementation.
 
-## Relationship Realization
+## Bridge Tables as Concepts
 
-N:M relationships require explicit realization through fact or bridge tables:
+Bridge tables are modeled as explicit concepts rather than hidden N:M associations:
 
 ```yaml
+# conceptual.yml
+concepts:
+  OrderLine:
+    name: "Order Line"
+    domain: transaction
+
 relationships:
   - name: contains
-    from: order
-    to: product
-    cardinality: "N:M"
+    from: Order
+    to: OrderLine
+    cardinality: "1:N"
 
-# Realized by:
+  - name: for
+    from: OrderLine
+    to: Product
+    cardinality: "N:1"
+
+# dbt model
 models:
-  - name: fact_order_lines
+  - name: bridge_order_product
     meta:
-      realizes:
-        - order:contains:product
+      concept: OrderLine
 ```
 
-Without realization, N:M relationships remain in `draft` status.
+This makes bridge tables visible and named, not just implementation details.
 
 ## Best Practices
 

@@ -16,7 +16,7 @@
 | `--project-dir PATH` | Path to dbt project root |
 | `--format [human\|github]` | Output format (default: human) |
 
-### `orphans` - List models without concept/realizes tags
+### `orphans` - List models without concept tags
 
 | Option | Description |
 |--------|-------------|

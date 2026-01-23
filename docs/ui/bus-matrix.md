@@ -15,7 +15,7 @@ The bus matrix displays:
 
 ### Row Headers
 
-Each row represents a fact table — a model that `realizes` one or more relationships.
+Each row represents a fact table — a model tagged with `meta.concept` that represents a business event or transaction.
 
 ### Column Headers
 
@@ -24,8 +24,8 @@ Each column represents a dimension concept — concepts that have implementing `
 ### Check Marks
 
 A check mark indicates the fact table joins to that dimension. This is derived from:
-- The relationships the fact `realizes`
-- The concepts those relationships connect
+- The relationships defined between concepts
+- The `meta.concept` tags on models
 
 ## Example
 
@@ -77,10 +77,10 @@ dcm export --type bus-matrix --format json
 The bus matrix is derived from your conceptual model:
 
 1. **Dimensions** come from concepts with `dim_` implementing models
-2. **Facts** come from models with `meta.realizes` tags
-3. **Intersections** come from the concepts connected by realized relationships
+2. **Facts** come from concepts with `fct_` or `fact_` implementing models
+3. **Intersections** come from the relationships defined between concepts
 
-If a fact realizes `customer:places:order`, it gets check marks in both Customer and Order columns.
+If Order has relationships to Customer and Product, the Order fact row gets check marks in both columns.
 
 ## Tips
 

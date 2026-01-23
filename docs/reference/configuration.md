@@ -45,7 +45,7 @@ vars:
 
 ### gold_paths
 
-Paths to gold layer models. Models here use `meta.concept` or `meta.realizes`.
+Paths to gold layer models. Models here use `meta.concept`.
 
 ```yaml
 vars:

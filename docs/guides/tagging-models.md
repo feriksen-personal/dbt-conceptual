@@ -2,30 +2,18 @@
 
 How to link your dbt models to conceptual model definitions.
 
-## The Two Tags
+## The Tag
 
-### meta.concept
-
-Use for dimension models — tables that implement a single concept.
+Use `meta.concept` to link any dbt model to a concept:
 
 ```yaml
 models:
   - name: dim_customer
     meta:
-      concept: customer
+      concept: Customer
 ```
 
-### meta.realizes
-
-Use for fact and bridge models — tables that implement relationships between concepts.
-
-```yaml
-models:
-  - name: fact_orders
-    meta:
-      realizes:
-        - customer:places:order
-```
+That's it. Dimensions, facts, bridges — they're all concepts. Tag with `meta.concept` and dbt-conceptual handles the rest.
 
 ## Tag Placement
 
@@ -39,7 +27,7 @@ models:
   - name: dim_customer
     description: "Customer dimension"
     meta:
-      concept: customer
+      concept: Customer
     columns:
       - name: customer_key
         description: "Surrogate key"
@@ -50,72 +38,76 @@ models:
 Dimensions implement a single concept. They answer "What is X?"
 
 ```yaml
-# dim_customer implements the customer concept
+# dim_customer implements the Customer concept
 - name: dim_customer
   meta:
-    concept: customer
+    concept: Customer
 
-# dim_product implements the product concept
+# dim_product implements the Product concept
 - name: dim_product
   meta:
-    concept: product
+    concept: Product
 ```
 
 One concept can have multiple implementing dimensions:
 
 ```yaml
-# Both implement customer
+# Both implement Customer
 - name: dim_customer
   meta:
-    concept: customer
+    concept: Customer
 
 - name: dim_customer_snapshot
   meta:
-    concept: customer
+    concept: Customer
 ```
 
-## Facts
+## Facts and Bridges
 
-Facts implement relationships. They answer "What happened?"
+Facts and bridges are also concepts. They represent business events or associations.
 
 ```yaml
-# fact_orders implements the customer:places:order relationship
-- name: fact_orders
+# Order is a concept (the event of ordering)
+- name: fct_orders
   meta:
-    realizes:
-      - customer:places:order
-```
+    concept: Order
 
-Facts often implement multiple relationships:
-
-```yaml
-# fact_order_lines implements multiple relationships
-- name: fact_order_lines
+# CustomerPolicy is a bridge concept (the association between customer and policy)
+- name: bridge_customer_policy
   meta:
-    realizes:
-      - customer:places:order
-      - order:contains:product
+    concept: CustomerPolicy
 ```
 
-## Bridge Tables
-
-N:M relationships typically require bridge tables:
+The relationships between these concepts are defined in your conceptual model:
 
 ```yaml
-# Relationship definition
+# In conceptual.yml
+concepts:
+  Customer:
+    name: Customer
+  Order:
+    name: Order
+  CustomerPolicy:
+    name: Customer Policy
+
 relationships:
-  - name: contains
-    from: order
-    to: product
-    cardinality: "N:M"
+  - name: places
+    from: Customer
+    to: Order
+    cardinality: "1:N"
 
-# Bridge table realization
-models:
-  - name: bridge_order_product
-    meta:
-      realizes:
-        - order:contains:product
+  - name: has
+    from: Customer
+    to: CustomerPolicy
+    cardinality: "1:N"
+
+  - name: covers
+    from: CustomerPolicy
+    to: Policy
+    cardinality: "N:1"
 ```
+
+This replaces N:M relationships with explicit bridge concepts connected via 1:N relationships.
 
 ## Silver Layer
 
@@ -126,26 +118,14 @@ Silver models can also be tagged:
 models:
   - name: stg_customers
     meta:
-      concept: customer
+      concept: Customer
 
   - name: stg_orders
     meta:
-      concept: order
+      concept: Order
 ```
 
 This shows which concepts have staging implementations.
-
-## Relationship Reference Format
-
-The `realizes` tag uses the format: `from_concept:verb:to_concept`
-
-```yaml
-customer:places:order      # customer places order
-order:contains:product     # order contains product
-employee:manages:employee  # employee manages employee (self-referential)
-```
-
-The reference must match a defined relationship in your conceptual model.
 
 ## Validation
 
@@ -157,12 +137,11 @@ dcm validate
 
 Common issues:
 - **Unknown concept reference** — Concept doesn't exist in conceptual.yml
-- **Unknown relationship reference** — Relationship doesn't exist
 - **Orphan model** — Model in silver/gold path without tags
 
 ## Best Practices
 
 1. **Tag early** — Add meta tags when creating new models
-2. **One concept per dimension** — Keep dimensions focused
-3. **Multiple realizes are OK** — Facts often join many concepts
+2. **One concept per model** — Keep models focused
+3. **Bridge concepts are concepts** — Don't think of them differently
 4. **Use stubs for discovery** — `dcm sync --create-stubs` finds untagged models

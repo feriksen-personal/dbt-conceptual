@@ -95,7 +95,7 @@ Informational messages about successful operations.
 | ----- | ------- |
 | Sync complete | "Synced 12 concepts from conceptual.yml" |
 | Model mapped | "Mapped 'dim_customer' → customer" |
-| Relationship realized | "Mapped 'fact_orders' realizes customer:places:order" |
+| Concept mapped | "Mapped 'fct_orders' → Order" |
 
 ---
 
