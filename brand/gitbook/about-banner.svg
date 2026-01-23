@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 200" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="bg-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fefefe"/>
+      <stop offset="100%" stop-color="#f8f7f6"/>
+    </linearGradient>
+    <linearGradient id="orange-glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e67e22" stop-opacity="0.03"/>
+      <stop offset="100%" stop-color="#e67e22" stop-opacity="0.08"/>
+    </linearGradient>
+    <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
+      <path d="M 60 0 L 0 0 0 60" fill="none" stroke="#f0eeec" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1600" height="200" fill="url(#bg-gradient)"/>
+
+  <!-- Orange accent gradient (diagonal swash) -->
+  <path d="M700 -100 L1700 -100 L1700 300 L1000 300 Z" fill="url(#orange-glow)"/>
+
+  <!-- Subtle grid pattern -->
+  <rect width="1600" height="200" fill="url(#grid)" opacity="0.5"/>
+</svg>

@@ -42,4 +42,5 @@
 ## Resources
 
 * [About](about.md)
-* [Changelog](changelog.md)
+* [Changelog](https://github.com/dbt-conceptual/dbt-conceptual/releases)
+* [Roadmap](https://github.com/dbt-conceptual/dbt-conceptual/issues?q=is%3Aissue+is%3Aopen+label%3Aroadmap)
