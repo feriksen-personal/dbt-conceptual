@@ -1,3 +1,8 @@
+---
+cover: ../brand/gitbook/hero-cover.svg
+coverY: 0
+---
+
 # dbt-conceptual
 
 **Conceptual modeling without the ceremony. Shared vocabulary for data teams who don't have time for meetings.**
