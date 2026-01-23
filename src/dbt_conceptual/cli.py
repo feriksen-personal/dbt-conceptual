@@ -1,5 +1,8 @@
 """CLI for dbt-conceptual."""
 
+import sys
+from collections.abc import Generator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Optional, TextIO
 
@@ -991,8 +994,6 @@ def export(
         dbt-conceptual export --type diagram --format svg -o diagram.svg
         dbt-conceptual export --type diff --format markdown --base main
     """
-    import sys
-
     from dbt_conceptual.exporter import (
         export_bus_matrix,
         export_bus_matrix_json,
@@ -1035,73 +1036,72 @@ def export(
     builder = StateBuilder(config)
     state = builder.build()
 
-    # Determine output stream
-    def get_output() -> TextIO:
-        if output:
-            return open(output, "w")
-        return sys.stdout
+    # Warn about SVG to stdout
+    if export_type == "diagram" and export_format == "svg" and output is None:
+        click.echo(
+            "Warning: SVG output to stdout may cause display issues.",
+            err=True,
+        )
+        click.echo("Consider using -o to write to a file.", err=True)
 
-    # Export based on type and format
+    # Export based on type and format (context manager ensures file is closed)
     try:
-        out = get_output()
-        is_file = output is not None
+        with _get_output_stream(output) as out:
+            if export_type == "diagram":
+                if export_format == "svg":
+                    _export_diagram_svg(state, out)
 
-        if export_type == "diagram":
-            if export_format == "svg":
-                _export_diagram_svg(state, out)
+            elif export_type == "coverage":
+                if export_format == "html":
+                    export_coverage(state, out)
+                elif export_format == "markdown":
+                    export_coverage_markdown(state, out)
+                elif export_format == "json":
+                    export_coverage_json(state, out)
 
-        elif export_type == "coverage":
-            if export_format == "html":
-                export_coverage(state, out)
-            elif export_format == "markdown":
-                export_coverage_markdown(state, out)
-            elif export_format == "json":
-                export_coverage_json(state, out)
+            elif export_type == "bus-matrix":
+                if export_format == "html":
+                    export_bus_matrix(state, out)
+                elif export_format == "markdown":
+                    export_bus_matrix_markdown(state, out)
+                elif export_format == "json":
+                    export_bus_matrix_json(state, out)
 
-        elif export_type == "bus-matrix":
-            if export_format == "html":
-                export_bus_matrix(state, out)
-            elif export_format == "markdown":
-                export_bus_matrix_markdown(state, out)
-            elif export_format == "json":
-                export_bus_matrix_json(state, out)
+            elif export_type == "status":
+                if export_format == "markdown":
+                    export_status_markdown(state, out)
+                elif export_format == "json":
+                    export_status_json(state, out)
 
-        elif export_type == "status":
-            if export_format == "markdown":
-                export_status_markdown(state, out)
-            elif export_format == "json":
-                export_status_json(state, out)
+            elif export_type == "orphans":
+                if export_format == "markdown":
+                    export_orphans_markdown(state, out)
+                elif export_format == "json":
+                    export_orphans_json(state, out)
 
-        elif export_type == "orphans":
-            if export_format == "markdown":
-                export_orphans_markdown(state, out)
-            elif export_format == "json":
-                export_orphans_json(state, out)
+            elif export_type == "validation":
+                validator = Validator(config, state, no_drafts=no_drafts)
+                issues = validator.validate()
+                if export_format == "markdown":
+                    export_validation_markdown(validator, issues, out)
+                elif export_format == "json":
+                    export_validation_json(validator, issues, out)
 
-        elif export_type == "validation":
-            validator = Validator(config, state, no_drafts=no_drafts)
-            issues = validator.validate()
-            if export_format == "markdown":
-                export_validation_markdown(validator, issues, out)
-            elif export_format == "json":
-                export_validation_json(validator, issues, out)
+            elif export_type == "diff":
+                # Diff requires computing against base ref
+                diff_result = _compute_diff_for_export(config, base)  # type: ignore
+                if export_format == "markdown":
+                    from dbt_conceptual.diff_formatter import format_markdown
 
-        elif export_type == "diff":
-            # Diff requires computing against base ref
-            diff_result = _compute_diff_for_export(config, base)  # type: ignore
-            if export_format == "markdown":
-                from dbt_conceptual.diff_formatter import format_markdown
+                    out.write(format_markdown(diff_result))
+                    out.write("\n")
+                elif export_format == "json":
+                    from dbt_conceptual.diff_formatter import format_json
 
-                out.write(format_markdown(diff_result))
-                out.write("\n")
-            elif export_format == "json":
-                from dbt_conceptual.diff_formatter import format_json
+                    out.write(format_json(diff_result))
+                    out.write("\n")
 
-                out.write(format_json(diff_result))
-                out.write("\n")
-
-        if is_file:
-            out.close()
+        if output:
             console.print(f"[green]✓ Exported to {output}[/green]")
 
     except Exception as e:
@@ -1109,27 +1109,49 @@ def export(
         raise click.Abort() from e
 
 
-def _compute_diff_for_export(config: Config, base: str) -> ConceptualDiff:
-    """Compute diff between current state and base git ref.
+@contextmanager
+def _get_output_stream(output: Optional[Path]) -> Generator[TextIO, None, None]:
+    """Context manager for getting output stream.
+
+    Properly handles file closing on exceptions.
+
+    Args:
+        output: Path to output file, or None for stdout
+
+    Yields:
+        File handle or sys.stdout
+    """
+    if output:
+        f = open(output, "w")
+        try:
+            yield f
+        finally:
+            f.close()
+    else:
+        yield sys.stdout
+
+
+def _load_state_from_git_ref(config: Config, base_ref: str) -> ProjectState:
+    """Load ProjectState from a git ref.
 
     Args:
         config: Project configuration
-        base: Base git ref to compare against
+        base_ref: Git ref to load from (e.g., 'main', 'origin/main', 'HEAD~1')
 
     Returns:
-        ConceptualDiff object with changes
+        ProjectState loaded from the git ref
+
+    Raises:
+        click.Abort: If git operations fail
     """
     import subprocess
     import tempfile
 
-    from dbt_conceptual.differ import compute_diff
+    import yaml
+
     from dbt_conceptual.state import DomainState, RelationshipState
 
     project_dir = config.project_dir
-
-    # Load current state
-    builder = StateBuilder(config)
-    current_state = builder.build()
 
     # Check if we're in a git repo
     try:
@@ -1142,11 +1164,14 @@ def _compute_diff_for_export(config: Config, base: str) -> ConceptualDiff:
     except subprocess.CalledProcessError as e:
         console.print("[red]Error: Not a git repository[/red]")
         raise click.Abort() from e
+    except FileNotFoundError as e:
+        console.print("[red]Error: git not found. This command requires git.[/red]")
+        raise click.Abort() from e
 
     # Get the conceptual.yml content from base ref
     conceptual_rel_path = config.conceptual_file.relative_to(project_dir)
     result = subprocess.run(
-        ["git", "show", f"{base}:{conceptual_rel_path}"],
+        ["git", "show", f"{base_ref}:{conceptual_rel_path}"],
         cwd=project_dir,
         capture_output=True,
         text=True,
@@ -1154,14 +1179,12 @@ def _compute_diff_for_export(config: Config, base: str) -> ConceptualDiff:
 
     if result.returncode != 0:
         console.print(
-            f"[red]Error: Could not find conceptual.yml at ref '{base}'[/red]"
+            f"[red]Error: Could not find conceptual.yml at ref '{base_ref}'[/red]"
         )
         console.print(f"[dim]{result.stderr.strip()}[/dim]")
         raise click.Abort()
 
     # Write base version to temp file and parse
-    import yaml
-
     with tempfile.NamedTemporaryFile(
         mode="w", suffix=".yml", delete=False
     ) as temp_file:
@@ -1209,12 +1232,34 @@ def _compute_diff_for_export(config: Config, base: str) -> ConceptualDiff:
                 custom_name=rel.get("name"),
             )
 
-        # Compute and return diff
-        return compute_diff(base_state, current_state)
+        return base_state
 
     finally:
         # Clean up temp file
         temp_path.unlink()
+
+
+def _compute_diff_for_export(config: Config, base: str) -> ConceptualDiff:
+    """Compute diff between current state and base git ref.
+
+    Args:
+        config: Project configuration
+        base: Base git ref to compare against
+
+    Returns:
+        ConceptualDiff object with changes
+    """
+    from dbt_conceptual.differ import compute_diff
+
+    # Load current state
+    builder = StateBuilder(config)
+    current_state = builder.build()
+
+    # Load base state from git ref
+    base_state = _load_state_from_git_ref(config, base)
+
+    # Compute and return diff
+    return compute_diff(base_state, current_state)
 
 
 def _export_diagram_svg(state: ProjectState, output: TextIO) -> None:
@@ -1473,10 +1518,6 @@ def diff(base: str, format: str, project_dir: Optional[Path]) -> None:
         # GitHub Actions format
         dbt-conceptual diff --base ${{ github.base_ref }} --format github
     """
-    import subprocess
-    import tempfile
-    from pathlib import Path
-
     from dbt_conceptual.diff_formatter import (
         format_github,
         format_human,
@@ -1499,122 +1540,30 @@ def diff(base: str, format: str, project_dir: Optional[Path]) -> None:
     builder = StateBuilder(config)
     current_state = builder.build()
 
-    # Get base version from git
-    try:
-        # Check if we're in a git repo
-        subprocess.run(
-            ["git", "rev-parse", "--git-dir"],
-            cwd=project_dir,
-            check=True,
-            capture_output=True,
-        )
+    # Load base state from git ref
+    base_state = _load_state_from_git_ref(config, base)
 
-        # Get the conceptual.yml content from base ref
-        conceptual_rel_path = config.conceptual_file.relative_to(project_dir)
-        result = subprocess.run(
-            ["git", "show", f"{base}:{conceptual_rel_path}"],
-            cwd=project_dir,
-            capture_output=True,
-            text=True,
-        )
+    # Compute diff
+    conceptual_diff = compute_diff(base_state, current_state)
 
-        if result.returncode != 0:
-            console.print(
-                f"[red]Error: Could not find conceptual.yml at ref '{base}'[/red]"
-            )
-            console.print(f"[dim]{result.stderr.strip()}[/dim]")
-            raise click.Abort()
+    # Format and output
+    if format == "human":
+        output = format_human(conceptual_diff)
+        console.print(output)
+    elif format == "github":
+        output = format_github(conceptual_diff)
+        print(output)  # Use print for GitHub Actions format
+    elif format == "json":
+        output = format_json(conceptual_diff)
+        print(output)
+    elif format == "markdown":
+        output = format_markdown(conceptual_diff)
+        print(output)
 
-        # Write base version to temp file
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".yml", delete=False
-        ) as temp_file:
-            temp_file.write(result.stdout)
-            temp_path = Path(temp_file.name)
-
-        try:
-            # Load base state
-            import yaml
-
-            with open(temp_path) as f:
-                base_data = yaml.safe_load(f)
-
-            if not base_data:
-                base_data = {}
-
-            base_state = ProjectState()
-
-            # Populate base state (simplified - no dbt manifest needed for diff)
-            for domain_id, domain_data in base_data.get("domains", {}).items():
-                from dbt_conceptual.state import DomainState
-
-                base_state.domains[domain_id] = DomainState(
-                    name=domain_id,
-                    display_name=domain_data.get("name", domain_id),
-                    color=domain_data.get("color"),
-                )
-
-            for concept_id, concept_data in base_data.get("concepts", {}).items():
-                base_state.concepts[concept_id] = ConceptState(
-                    name=concept_data.get("name", concept_id),
-                    domain=concept_data.get("domain"),
-                    owner=concept_data.get("owner"),
-                    definition=concept_data.get("definition"),
-                    color=concept_data.get("color"),
-                    replaced_by=concept_data.get("replaced_by"),
-                )
-
-            for rel in base_data.get("relationships", []):
-                from dbt_conceptual.state import RelationshipState
-
-                verb = rel.get("verb", "")
-                from_concept = rel.get("from", "")
-                to_concept = rel.get("to", "")
-                rel_key = f"{from_concept}:{verb}:{to_concept}"
-
-                base_state.relationships[rel_key] = RelationshipState(
-                    verb=verb,
-                    from_concept=from_concept,
-                    to_concept=to_concept,
-                    cardinality=rel.get("cardinality"),
-                    definition=rel.get("definition"),
-                    domains=rel.get("domains", []),
-                    owner=rel.get("owner"),
-                    custom_name=rel.get("name"),
-                )
-
-            # Compute diff
-            conceptual_diff = compute_diff(base_state, current_state)
-
-            # Format and output
-            if format == "human":
-                output = format_human(conceptual_diff)
-                console.print(output)
-            elif format == "github":
-                output = format_github(conceptual_diff)
-                print(output)  # Use print for GitHub Actions format
-            elif format == "json":
-                output = format_json(conceptual_diff)
-                print(output)
-            elif format == "markdown":
-                output = format_markdown(conceptual_diff)
-                print(output)
-
-            # Exit with error if there are changes and format is github
-            # (so CI can optionally fail on changes)
-            if format == "github" and conceptual_diff.has_changes:
-                raise click.exceptions.Exit(1)
-
-        finally:
-            # Clean up temp file
-            temp_path.unlink()
-
-    except subprocess.CalledProcessError as e:
-        console.print(f"[red]Error: git command failed: {e}[/red]")
-        raise click.Abort() from e
-    except FileNotFoundError as e:
-        console.print("[red]Error: git not found. This command requires git.[/red]")
-        raise click.Abort() from e
+    # Exit with error if there are changes and format is github
+    # (so CI can optionally fail on changes)
+    if format == "github" and conceptual_diff.has_changes:
+        raise click.exceptions.Exit(1)
 
 
 if __name__ == "__main__":
