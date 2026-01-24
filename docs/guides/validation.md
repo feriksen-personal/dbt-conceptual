@@ -247,6 +247,56 @@ For UI customization or theming, these CSS variables control validation colors:
 
 ---
 
+## Validation Code Reference
+
+Complete list of validation codes emitted by `dcm validate`.
+
+### Errors (Always Fail)
+
+| Code | Description |
+|------|-------------|
+| E001 | Concept missing required fields for its status |
+| E002 | Relationship references non-existent concept |
+| E003 | Realized relationship references concept with no implementing models |
+| E004 | Group name collides with relationship name |
+| E201 | Stub/draft concept needs enrichment (with `--no-drafts`) |
+| E202 | Stub/draft relationship is incomplete (with `--no-drafts`) |
+
+### Warnings (Configurable Severity)
+
+These can be set to `error`, `warn`, or `ignore` in `dbt_project.yml` under `vars.dbt_conceptual.validation`.
+
+| Code | Config Key | Description |
+|------|------------|-------------|
+| W001 | — | Concept references unknown domain |
+| W002 | — | Deprecated concept still referenced by models |
+| W003 | — | Concept has gold models but no silver models (unusual pattern) |
+| W101 | `orphan_models` | Model not linked to any concept |
+| W102 | `unimplemented_concepts` | Concept has no implementing models |
+| W103 | `unrealized_relationships` | Relationship not realized by any model |
+| W104 | `missing_definitions` | Concept missing a definition |
+
+### Informational
+
+| Code | Description |
+|------|-------------|
+| I001 | Stub/draft concept needs enrichment (domain, owner, definition) |
+| I002 | Stub/draft relationship is incomplete |
+
+### Tag Validation (Opt-in)
+
+Enable with `vars.dbt_conceptual.validation.tag_validation.enabled: true`.
+
+| Code | Description |
+|------|-------------|
+| T001 | Model missing domain tag |
+| T002 | Model has wrong domain tag (doesn't match concept domain) |
+| T003 | Model has multiple domain tags (when `allow_multiple: false`) |
+| T004 | Model missing owner tag |
+| T005 | Model has wrong owner tag (doesn't match concept/domain owner) |
+
+---
+
 ## Summary
 
 | Action | Result |
