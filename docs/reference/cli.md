@@ -1,74 +1,229 @@
-# dcm CLI Reference
+# CLI Reference
+
+Complete reference for `dcm` command-line interface.
 
 ## Global Options
 
 | Option | Description |
 |--------|-------------|
+| `-v, --verbose` | Increase verbosity (use `-vv` for debug) |
+| `-q, --quiet` | Suppress non-error output |
 | `--version` | Show version and exit |
 | `--help` | Show help message and exit |
 
 ## Commands
 
-### `status` - Show conceptual model coverage status
+### `dcm status`
+
+Show conceptual model coverage status.
+
+```bash
+dcm status [OPTIONS]
+```
 
 | Option | Description |
 |--------|-------------|
 | `--project-dir PATH` | Path to dbt project root |
-| `--format [human\|github]` | Output format (default: human) |
+| `--silver-paths TEXT` | Override silver layer paths (repeatable) |
+| `--gold-paths TEXT` | Override gold layer paths (repeatable) |
 
-### `orphans` - List models without concept tags
+---
 
-| Option | Description |
-|--------|-------------|
-| `--project-dir PATH` | Path to dbt project root |
-| `--format [human\|github]` | Output format (default: human) |
+### `dcm orphans`
 
-### `validate` - Validate conceptual model correspondence
+List models without `meta.concept` tags.
 
-| Option | Description |
-|--------|-------------|
-| `--project-dir PATH` | Path to dbt project root |
-| `--format [human\|github]` | Output format (default: human) |
-
-### `init` - Initialize dbt-conceptual in a project
+```bash
+dcm orphans [OPTIONS]
+```
 
 | Option | Description |
 |--------|-------------|
 | `--project-dir PATH` | Path to dbt project root |
-| `--force` | Overwrite existing files |
+| `--silver-paths TEXT` | Override silver layer paths (repeatable) |
+| `--gold-paths TEXT` | Override gold layer paths (repeatable) |
 
-### `sync` - Discover dbt models and sync with conceptual model
+---
+
+### `dcm validate`
+
+Validate conceptual model correspondence. Returns exit code 1 on errors.
+
+```bash
+dcm validate [OPTIONS]
+```
 
 | Option | Description |
 |--------|-------------|
 | `--project-dir PATH` | Path to dbt project root |
+| `--silver-paths TEXT` | Override silver layer paths (repeatable) |
+| `--gold-paths TEXT` | Override gold layer paths (repeatable) |
+| `--format FORMAT` | Output format: `human` (default), `github`, `markdown` |
+| `--no-drafts` | Fail if any concepts/relationships are incomplete |
+
+**Exit codes:**
+- `0` — Validation passed
+- `1` — Validation errors found
+
+---
+
+### `dcm init`
+
+Initialize dbt-conceptual in a project.
+
+```bash
+dcm init [OPTIONS]
+```
+
+| Option | Description |
+|--------|-------------|
+| `--project-dir PATH` | Path to dbt project root |
+
+Creates `models/conceptual/conceptual.yml` with starter template.
+
+---
+
+### `dcm sync`
+
+Discover dbt models and sync with conceptual model.
+
+```bash
+dcm sync [OPTIONS]
+```
+
+| Option | Description |
+|--------|-------------|
+| `--project-dir PATH` | Path to dbt project root |
+| `--create-stubs` | Create stub concepts for orphan models |
+| `--model TEXT` | Sync only a specific model by name |
+
+---
+
+### `dcm apply`
+
+Apply conceptual model tags to dbt model files.
+
+```bash
+dcm apply [OPTIONS]
+```
+
+| Option | Description |
+|--------|-------------|
+| `--project-dir PATH` | Path to dbt project root |
+| `--propagate-tags` | Write domain/owner tags to model YAML files |
 | `--dry-run` | Show what would be changed without modifying files |
+| `--models TEXT` | Target specific models (repeatable) |
 
-### `export` - Export conceptual model to various formats
+Useful for propagating conceptual model metadata to dbt models for Unity Catalog tagging.
 
-| Option | Description |
-|--------|-------------|
-| `--project-dir PATH` | Path to dbt project root |
-| `--format FORMAT` | Export format: mermaid, excalidraw, png, coverage, bus-matrix |
-| `--output PATH` | Output file path (default: stdout or format-specific) |
-| `--domain TEXT` | Filter to specific domain(s), can be repeated |
-| `--include-stubs` | Include stub concepts in export |
-| `--include-deprecated` | Include deprecated concepts in export |
+---
 
-### `serve` - Launch interactive web UI
+### `dcm export`
 
-| Option | Description |
-|--------|-------------|
-| `--project-dir PATH` | Path to dbt project root |
-| `--port INTEGER` | Port to run server on (default: 8741) |
-| `--host TEXT` | Host to bind to (default: 127.0.0.1) |
-| `--no-browser` | Don't open browser automatically |
-| `--demo` | Run in demo mode with sample data |
+Export conceptual model to various formats.
 
-### `diff` - Compare conceptual model against base git ref
+```bash
+dcm export --type TYPE --format FORMAT [OPTIONS]
+```
 
 | Option | Description |
 |--------|-------------|
 | `--project-dir PATH` | Path to dbt project root |
-| `--base TEXT` | Base git ref to compare against (default: main) |
-| `--format [human\|github]` | Output format (default: human) |
+| `--type TYPE` | What to export (required) |
+| `--format FORMAT` | Output format (required) |
+| `-o, --output PATH` | Output file (default: stdout) |
+| `--no-drafts` | For validation: fail if incomplete |
+| `--base REF` | For diff: git ref to compare against |
+
+**Export types and formats:**
+
+| Type | Formats |
+|------|---------|
+| `diagram` | `svg` |
+| `coverage` | `html`, `markdown`, `json` |
+| `bus-matrix` | `html`, `markdown`, `json` |
+| `status` | `markdown`, `json` |
+| `orphans` | `markdown`, `json` |
+| `validation` | `markdown`, `json` |
+| `diff` | `markdown`, `json` |
+
+See [Export Formats](exports.md) for detailed output documentation.
+
+---
+
+### `dcm serve`
+
+Launch interactive web UI.
+
+```bash
+dcm serve [OPTIONS]
+```
+
+| Option | Description |
+|--------|-------------|
+| `--project-dir PATH` | Path to dbt project root |
+| `--host TEXT` | Host to bind to (default: `127.0.0.1`) |
+| `--port INTEGER` | Port to bind to (default: `8050`) |
+| `--demo` | Run with demo data (no project required) |
+
+---
+
+### `dcm diff`
+
+Compare conceptual model against a base git reference.
+
+```bash
+dcm diff --base REF [OPTIONS]
+```
+
+| Option | Description |
+|--------|-------------|
+| `--base REF` | Git ref to compare against (required) |
+| `--format FORMAT` | Output: `human` (default), `github`, `json`, `markdown` |
+| `--project-dir PATH` | Path to dbt project root |
+
+**Examples:**
+```bash
+dcm diff --base main
+dcm diff --base origin/main --format github
+dcm diff --base HEAD~1 --format markdown
+```
+
+---
+
+## Exit Codes
+
+| Command | Exit 0 | Exit 1 |
+|---------|--------|--------|
+| `dcm validate` | No errors | Has errors |
+| `dcm validate --no-drafts` | Complete | Has drafts/stubs or errors |
+| `dcm diff --format github` | No changes | Has changes |
+| Other commands | Success | Error |
+
+## Common Patterns
+
+### CI Validation
+
+```bash
+# Basic validation
+dcm validate --format github
+
+# Strict validation (no incomplete items)
+dcm validate --no-drafts --format github
+```
+
+### Coverage Reports
+
+```bash
+# Job summary
+dcm export --type coverage --format markdown >> $GITHUB_STEP_SUMMARY
+
+# HTML artifact
+dcm export --type coverage --format html -o coverage.html
+```
+
+### Diff in Pull Requests
+
+```bash
+dcm diff --base origin/main --format markdown >> $GITHUB_STEP_SUMMARY
+```

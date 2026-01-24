@@ -154,15 +154,15 @@ Auto-generated as `{from}:{name}:{to}`, e.g., `customer:places:order`.
 | `draft` | No `domains` |
 | `complete` | Has `domains` |
 
-## Groups
+## Relationship Groups
 
 Optional groupings of relationships for UI organization.
 
 ```yaml
-groups:
+relationship_groups:
   order_flow:
     - customer:places:order
-    - order:contains:product
+    - order:contains:order_line
   inventory:
     - product:stored_in:warehouse
 ```

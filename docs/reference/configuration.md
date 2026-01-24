@@ -38,8 +38,8 @@ Paths to silver layer models. Models here can use `meta.concept`.
 vars:
   dbt_conceptual:
     silver_paths:
-      - models/staging      # default
       - models/silver       # default
+      - models/staging
       - models/intermediate
 ```
 
@@ -51,8 +51,8 @@ Paths to gold layer models. Models here use `meta.concept`.
 vars:
   dbt_conceptual:
     gold_paths:
-      - models/marts   # default
       - models/gold    # default
+      - models/marts
       - models/presentation
 ```
 
@@ -68,7 +68,6 @@ vars:
       unimplemented_concepts: warn  # default: warn
       unrealized_relationships: warn # default: warn
       missing_definitions: ignore   # default: ignore
-      domain_mismatch: warn         # default: warn
 ```
 
 ### Severity Options
@@ -87,7 +86,6 @@ vars:
 | `unimplemented_concepts` | Concepts without implementing models |
 | `unrealized_relationships` | Relationships not traced by any model |
 | `missing_definitions` | Concepts without definition text |
-| `domain_mismatch` | Concepts with unknown domain references |
 
 ## Tag Validation
 
@@ -160,7 +158,6 @@ vars:
       unimplemented_concepts: error  # strict
       unrealized_relationships: warn
       missing_definitions: warn
-      domain_mismatch: error
 
       tag_validation:
         enabled: true
@@ -176,8 +173,8 @@ If no configuration is provided:
 | Setting | Default |
 |---------|---------|
 | `conceptual_path` | `models/conceptual` |
-| `silver_paths` | `["models/staging", "models/silver"]` |
-| `gold_paths` | `["models/marts", "models/gold"]` |
+| `silver_paths` | `["models/silver"]` |
+| `gold_paths` | `["models/gold"]` |
 | All validation rules | `warn` (except `missing_definitions`: `ignore`) |
 | `tag_validation.enabled` | `false` |
 
