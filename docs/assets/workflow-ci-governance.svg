@@ -1,0 +1,124 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" fill="none">
+  <defs>
+    <linearGradient id="orangeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e67e22"/>
+      <stop offset="100%" stop-color="#d35400"/>
+    </linearGradient>
+    <linearGradient id="greenGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#27ae60"/>
+      <stop offset="100%" stop-color="#1e8449"/>
+    </linearGradient>
+    <linearGradient id="redGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e74c3c"/>
+      <stop offset="100%" stop-color="#c0392b"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="800" height="450" fill="#fafaf9"/>
+  
+  <!-- Title -->
+  <text x="400" y="35" font-family="Inter, -apple-system, sans-serif" font-size="22" font-weight="600" fill="#333333" text-anchor="middle">
+    Governance in CI: Operationalized
+  </text>
+  <text x="400" y="58" font-family="Inter, -apple-system, sans-serif" font-size="13" fill="#888888" text-anchor="middle">
+    No meetings. No forms. Push code, get feedback.
+  </text>
+  
+  <!-- Pipeline flow -->
+  <!-- Step 1: Code Change -->
+  <g transform="translate(40, 100)">
+    <rect width="140" height="90" rx="8" fill="white" stroke="#888888" stroke-width="2"/>
+    <text x="70" y="30" font-family="Inter, -apple-system, sans-serif" font-size="12" font-weight="600" fill="#333333" text-anchor="middle">Code Change</text>
+    <text x="70" y="50" font-family="Inter, -apple-system, sans-serif" font-size="10" fill="#888888" text-anchor="middle">New model or</text>
+    <text x="70" y="64" font-family="Inter, -apple-system, sans-serif" font-size="10" fill="#888888" text-anchor="middle">concept update</text>
+    <text x="70" y="82" font-family="monospace" font-size="9" fill="#888888" text-anchor="middle">git push</text>
+  </g>
+  
+  <!-- Arrow -->
+  <path d="M190 145 L230 145" stroke="#888888" stroke-width="2" stroke-linecap="round"/>
+  <polygon points="228,140 240,145 228,150" fill="#888888"/>
+  
+  <!-- Step 2: CI Pipeline -->
+  <g transform="translate(250, 85)">
+    <rect width="300" height="120" rx="8" fill="white" stroke="#e67e22" stroke-width="2"/>
+    <rect width="300" height="32" rx="8" fill="url(#orangeGradient)"/>
+    <rect y="24" width="300" height="8" fill="url(#orangeGradient)"/>
+    <text x="150" y="22" font-family="Inter, -apple-system, sans-serif" font-size="12" font-weight="600" fill="white" text-anchor="middle">CI Pipeline</text>
+    
+    <!-- Pipeline steps -->
+    <g transform="translate(15, 45)">
+      <rect width="80" height="28" rx="4" fill="#f5f5f5" stroke="#e8e6e3"/>
+      <text x="40" y="18" font-family="Inter, -apple-system, sans-serif" font-size="9" fill="#888888" text-anchor="middle">dbt build</text>
+    </g>
+    <text x="105" y="63" font-family="Inter, -apple-system, sans-serif" font-size="12" fill="#cccccc">→</text>
+    <g transform="translate(115, 45)">
+      <rect width="80" height="28" rx="4" fill="#fef9f5" stroke="#e67e22"/>
+      <text x="40" y="18" font-family="Inter, -apple-system, sans-serif" font-size="9" fill="#e67e22" text-anchor="middle" font-weight="600">dcm validate</text>
+    </g>
+    <text x="205" y="63" font-family="Inter, -apple-system, sans-serif" font-size="12" fill="#cccccc">→</text>
+    <g transform="translate(215, 45)">
+      <rect width="70" height="28" rx="4" fill="#f5f5f5" stroke="#e8e6e3"/>
+      <text x="35" y="18" font-family="Inter, -apple-system, sans-serif" font-size="9" fill="#888888" text-anchor="middle">dbt test</text>
+    </g>
+    
+    <!-- What dcm validate checks -->
+    <text x="15" y="95" font-family="Inter, -apple-system, sans-serif" font-size="9" fill="#666666">dcm validate checks: coverage, taxonomy, owners, domains, deprecation</text>
+  </g>
+  
+  <!-- Branch to Pass/Fail -->
+  <path d="M560 145 L600 145" stroke="#888888" stroke-width="2" stroke-linecap="round"/>
+  
+  <!-- Pass path -->
+  <path d="M600 145 L620 145 L620 100 L660 100" stroke="#27ae60" stroke-width="2" stroke-linecap="round"/>
+  <polygon points="658,95 670,100 658,105" fill="#27ae60"/>
+  
+  <!-- Fail path -->
+  <path d="M600 145 L620 145 L620 190 L660 190" stroke="#e74c3c" stroke-width="2" stroke-linecap="round"/>
+  <polygon points="658,185 670,190 658,195" fill="#e74c3c"/>
+  
+  <!-- Pass result -->
+  <g transform="translate(680, 75)">
+    <rect width="90" height="50" rx="6" fill="white" stroke="#27ae60" stroke-width="2"/>
+    <text x="45" y="22" font-family="Inter, -apple-system, sans-serif" font-size="11" font-weight="600" fill="#27ae60" text-anchor="middle">✓ Pass</text>
+    <text x="45" y="40" font-family="Inter, -apple-system, sans-serif" font-size="9" fill="#888888" text-anchor="middle">Merge allowed</text>
+  </g>
+  
+  <!-- Fail result -->
+  <g transform="translate(680, 165)">
+    <rect width="90" height="50" rx="6" fill="white" stroke="#e74c3c" stroke-width="2"/>
+    <text x="45" y="22" font-family="Inter, -apple-system, sans-serif" font-size="11" font-weight="600" fill="#e74c3c" text-anchor="middle">✗ Fail</text>
+    <text x="45" y="40" font-family="Inter, -apple-system, sans-serif" font-size="9" fill="#888888" text-anchor="middle">Fix required</text>
+  </g>
+  
+  <!-- Example messages box -->
+  <g transform="translate(40, 250)">
+    <rect width="720" height="150" rx="8" fill="white" stroke="#e8e6e3" stroke-width="1"/>
+    <text x="20" y="25" font-family="Inter, -apple-system, sans-serif" font-size="12" font-weight="600" fill="#333333">Example CI Output</text>
+    
+    <!-- Success messages -->
+    <g transform="translate(20, 40)">
+      <rect width="330" height="95" rx="6" fill="#f0fdf4" stroke="#27ae60" stroke-width="1"/>
+      <text x="10" y="20" font-family="monospace" font-size="10" fill="#27ae60">✓ Coverage: 94% (target: 80%)</text>
+      <text x="10" y="38" font-family="monospace" font-size="10" fill="#27ae60">✓ All concepts have owners</text>
+      <text x="10" y="56" font-family="monospace" font-size="10" fill="#27ae60">✓ Taxonomy values valid</text>
+      <text x="10" y="74" font-family="monospace" font-size="10" fill="#27ae60">✓ No deprecated concept usage</text>
+      <text x="10" y="88" font-family="monospace" font-size="10" fill="#888888">Tags will propagate to UC on merge</text>
+    </g>
+    
+    <!-- Failure messages -->
+    <g transform="translate(370, 40)">
+      <rect width="330" height="95" rx="6" fill="#fef2f2" stroke="#e74c3c" stroke-width="1"/>
+      <text x="10" y="20" font-family="monospace" font-size="10" fill="#e74c3c">✗ Coverage: 72% (target: 80%)</text>
+      <text x="10" y="38" font-family="monospace" font-size="10" fill="#e74c3c">✗ Concept 'refund' missing owner</text>
+      <text x="10" y="56" font-family="monospace" font-size="10" fill="#e74c3c">✗ Unknown value: confidentiality=secret</text>
+      <text x="10" y="74" font-family="monospace" font-size="10" fill="#888888">  Valid values: public, internal, confidential</text>
+      <text x="10" y="88" font-family="monospace" font-size="10" fill="#888888">Fix issues before merge</text>
+    </g>
+  </g>
+  
+  <!-- Bottom tagline -->
+  <text x="400" y="430" font-family="Inter, -apple-system, sans-serif" font-size="14" font-weight="600" fill="#e67e22" text-anchor="middle">
+    Governance validated on every PR. No manual review required.
+  </text>
+</svg>

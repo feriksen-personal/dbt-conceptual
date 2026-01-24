@@ -30,6 +30,13 @@ But dbt-conceptual is not a governance platform. It won't replace Collibra, Purv
 
 **For teams with enterprise governance:** dbt-conceptual becomes a feeder. Your conceptual model stays current in the codebase, then syncs to your catalog of record. Architecture that supports governance, not competes with it.
 
+### Getting Started with Governance
+
+For practical adoption workflows, see:
+
+- [Choosing Your Approach](../guides/adoption/choosing-your-approach.md)
+- [Working with Governance](../guides/adoption/working-with-governance.md)
+
 ---
 
 ## Design Philosophy

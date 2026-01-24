@@ -19,6 +19,11 @@
 ## Guides
 
 * [Overview](guides/README.md)
+* [Adoption Workflows](guides/adoption/choosing-your-approach.md)
+  * [Top-Down: Conceptual First](guides/adoption/greenfield-top-down.md)
+  * [Bottom-Up: Models First](guides/adoption/greenfield-bottom-up.md)
+  * [Brownfield Adoption](guides/adoption/brownfield-adoption.md)
+  * [Working with Governance](guides/adoption/working-with-governance.md)
 * [Defining Concepts](guides/defining-concepts.md)
 * [Tagging dbt Models](guides/tagging-models.md)
 * [Validation & Messages](guides/validation.md)
