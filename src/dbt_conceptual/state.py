@@ -153,7 +153,7 @@ class ModelInfo:
 
     name: str
     concept: Optional[str] = None  # From meta.concept (explicit)
-    inferred_concept: Optional[str] = None  # From lineage inference
+    inferred_concepts: list[str] = field(default_factory=list)  # From lineage inference
     realizes: list[str] = field(default_factory=list)  # From meta.realizes
     domain_tags: list[str] = field(
         default_factory=list
@@ -163,14 +163,16 @@ class ModelInfo:
     path: Optional[str] = None
 
     @property
-    def effective_concept(self) -> Optional[str]:
-        """Get the concept (explicit takes precedence over inferred)."""
-        return self.concept or self.inferred_concept
+    def effective_concepts(self) -> list[str]:
+        """Get concepts (explicit takes precedence over inferred)."""
+        if self.concept:
+            return [self.concept]
+        return self.inferred_concepts
 
     @property
     def is_inferred(self) -> bool:
         """Whether this model's concept association is inferred from lineage."""
-        return self.concept is None and self.inferred_concept is not None
+        return self.concept is None and len(self.inferred_concepts) > 0
 
 
 @dataclass

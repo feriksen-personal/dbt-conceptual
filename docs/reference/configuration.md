@@ -93,6 +93,21 @@ This enables flexible architectures:
 - **Gold-centric**: Tag dims/facts, infer silver/bronze
 - **Silver-centric**: Tag hubs/satellites (Data Vault), infer gold
 
+### Multi-Concept Inference
+
+A model can be inferred from multiple concepts when it's upstream or downstream of multiple tagged models:
+
+```
+stg_orders (bronze)                      <- inferred: customer, product
+  |
+  +-- hub_customer (silver, meta.concept: customer)
+  +-- hub_product (silver, meta.concept: product)
+  |
+  +-- dim_customer_products (gold)       <- inferred: customer, product
+```
+
+This is intentional—shared staging or mart models naturally relate to multiple concepts. The UI shows all inferred concepts for such models.
+
 ## Validation Configuration
 
 Configure validation rule severities under `validation`:
