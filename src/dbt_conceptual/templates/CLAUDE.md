@@ -124,7 +124,6 @@ vars:
       unimplemented_concepts: warn     # Concepts with no models
       unrealized_relationships: warn   # Relationships not traced
       missing_definitions: ignore      # Concepts without definition
-      domain_mismatch: warn            # Tag domain != concept domain
 
       # Tag validation (opt-in)
       tag_validation:
@@ -176,7 +175,6 @@ vars:
 | W102 | unimplemented_concepts | Concept '{name}' has no implementing models |
 | W103 | unrealized_relationships | Relationship is not realized by any model |
 | W104 | missing_definitions | Concept '{name}' is missing a definition |
-| W105 | domain_mismatch | Model domain tag doesn't match concept domain |
 
 ### Informational
 
