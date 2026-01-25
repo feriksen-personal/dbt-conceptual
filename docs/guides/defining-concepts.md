@@ -1,176 +1,265 @@
 # Defining Concepts
 
-A guide to writing clear, useful concept definitions in your conceptual model.
+How to write good concept definitions that create shared understanding.
 
-## What Makes a Good Concept
+---
 
-### Clear Boundaries
+## The Basics
 
-A concept should answer: **"What is this thing?"** not **"How is it stored?"**
-
-```yaml
-# Good — describes business meaning
-customer:
-  name: "Customer"
-  definition: "A person or company that purchases products from us"
-
-# Avoid — describes implementation
-customer:
-  name: "Customer"
-  definition: "Primary key is customer_id, stored in dim_customer table"
-```
-
-### Business Language
-
-Use terms your business stakeholders would recognize. If they wouldn't use the word, consider whether it's the right concept name.
-
-```yaml
-# Good — business term
-order:
-  definition: "A confirmed purchase by a customer"
-
-# Avoid — technical jargon
-order:
-  definition: "A transactional entity representing the order header record"
-```
-
-## Structure of a Concept
+A concept definition lives in `conceptual.yml`:
 
 ```yaml
 concepts:
   customer:
-    name: "Customer"           # Display name (required)
-    domain: party              # Domain grouping (recommended)
-    owner: customer_team       # Responsible team (recommended)
-    definition: |              # Business definition (recommended)
+    name: "Customer"
+    domain: party
+    owner: commercial-analytics
+    description: |
       A person or company that purchases products.
-
-      Includes both B2C and B2B customers. Internal test accounts
-      are excluded.
+      
+      Includes both B2C and B2B customers.
+      Internal test accounts are excluded.
 ```
 
-### Required Fields
+That's the structure. The art is in writing descriptions that actually help.
 
-- **name**: Human-readable display name
+---
 
-### Recommended Fields
+## Writing Good Descriptions
 
-- **domain**: Groups related concepts, enables filtering
-- **owner**: Team responsible for this concept's implementation
-- **definition**: Markdown text explaining what the concept means
+### Answer "What Is This?"
 
-### Optional Fields
+A description should answer: "If a business stakeholder asked what this is, what would I say?"
 
-- **color**: Override the domain's default color in the UI
-- **replaced_by**: Points to successor concept when deprecated
+| Weak | Strong |
+|------|--------|
+| "Customer data" | "A person or company that purchases products" |
+| "Order table" | "A confirmed purchase by a customer, created when payment is authorized" |
+| "Product dimension" | "An item available for purchase, identified by SKU" |
 
-## Writing Definitions
+### Include Boundaries
 
-### Include
-
-- What the concept represents
-- Key business rules that define scope
-- Examples when helpful
-
-### Exclude
-
-- Implementation details (table names, column names)
-- Technical jargon (unless domain-specific)
-- Duplicate information already in other concepts
-
-### Examples
+What's included? What's excluded? This prevents confusion later.
 
 ```yaml
-order:
-  definition: |
-    A confirmed purchase by a customer.
-
-    An order is created when payment is authorized. Draft carts and
-    abandoned checkouts are not orders. Returns create separate refund
-    records, not modifications to the original order.
-
-product:
-  definition: |
-    An item available for purchase in our catalog.
-
-    Products have SKUs and can be physical goods or digital downloads.
-    Product variants (size, color) are separate product records.
+customer:
+  description: |
+    A person or company that purchases products.
+    
+    Includes:
+    - B2C customers (individuals)
+    - B2B customers (companies)
+    
+    Excludes:
+    - Internal test accounts
+    - Leads that never converted
+    - Suppliers (see: supplier concept)
 ```
 
-## Relationships
+### Use Business Language
 
-Relationships connect concepts with verbs that describe the connection.
+Write for someone who doesn't know SQL or dbt. Avoid:
+- Table names
+- Column names  
+- Technical jargon
+- Abbreviations (unless well-known in the business)
 
-```yaml
-relationships:
-  - name: places           # The verb
-    from: customer         # Subject
-    to: order             # Object
-    cardinality: "1:N"    # How many
-    definition: "A customer places one or more orders"
-```
+---
 
-### Naming Convention
+## Concept Naming
 
-Use active verbs that read naturally: `customer places order`, `order contains product`.
+### Use Singular Nouns
 
-### Cardinality Options
+| Good | Avoid |
+|------|-------|
+| `customer` | `customers` |
+| `order` | `orders` |
+| `product` | `products` |
 
-| Value | Meaning |
-|-------|---------|
-| `1:1` | Exactly one on each side |
-| `1:N` | One-to-many |
+### Use Business Terms
 
-### Many-to-Many Relationships
+| Good | Avoid |
+|------|-------|
+| `customer` | `cust`, `cstmr` |
+| `order` | `sales_transaction` |
+| `product` | `sku_item` |
 
-For many-to-many relationships, create a bridge concept:
+### Be Specific
 
-```yaml
-concepts:
-  order_line:
-    name: "Order Line"
-    domain: transaction
-    definition: "Line item linking orders to products"
+| Generic | Specific |
+|---------|----------|
+| `transaction` | `order`, `payment`, `refund` |
+| `entity` | `customer`, `supplier`, `employee` |
+| `event` | `page_view`, `purchase`, `signup` |
 
-relationships:
-  - name: contains
-    from: order
-    to: order_line
-    cardinality: "1:N"
-  - name: includes
-    from: order_line
-    to: product
-    cardinality: "1:1"
-```
+---
 
-This surfaces the bridge as a first-class concept with its own definition and tagging.
+## Using Domains
 
-## Domains
-
-Domains group related concepts and provide defaults.
+Every concept should belong to a domain:
 
 ```yaml
 domains:
   party:
     name: "Party"
-    owner: party_team      # Default owner for concepts in this domain
-    color: "#3498db"       # Color in UI visualizations
+    owner: commercial-analytics
+
+concepts:
+  customer:
+    domain: party      # ← Assign to domain
 ```
 
-### When to Create a Domain
+If you're not sure which domain, ask: "What business area owns this concept?"
 
-- Group of 3+ related concepts
-- Distinct ownership boundary
-- Logical separation in business thinking
+Without a domain, a concept is considered a **stub** — incomplete and needing attention.
 
-Common domains: Party, Transaction, Catalog, Location, Time
+---
 
-## Status Progression
+## Using Meta
 
-New concepts typically progress through states:
+The `meta` block is for your own properties — integrations, references, custom fields:
 
-1. **stub** — Created from sync, needs domain
-2. **draft** — Has domain, no implementing models yet
-3. **complete** — Has domain and implementing models
+```yaml
+concepts:
+  customer:
+    name: "Customer"
+    domain: party
+    description: |
+      A person or company that purchases products.
+    meta:
+      source_system: "salesforce"
+      jira_epic: "DATA-1234"
+      last_reviewed: "2025-01-15"
+```
 
-Track status with `dcm status` to see which concepts need attention.
+Use `meta` for anything that's useful to your team but not part of the core schema.
+
+---
+
+## Working with Stubs
+
+When you run `dcm sync --create-stubs`, you get placeholder concepts:
+
+```yaml
+concepts:
+  mystery_concept:
+    name: "mystery_concept"
+    domain: null
+    owner: null
+```
+
+These are starting points. Enrich them:
+
+1. Set the `domain`
+2. Set the `owner` (or let it inherit from domain)
+3. Write a `description`
+4. Give it a proper `name`
+
+Until a concept has a domain, it stays a stub.
+
+---
+
+## Concept Lifecycle
+
+| Status | What to Do |
+|--------|------------|
+| **Stub** | Assign a domain, add description |
+| **Draft** | Tag models with `meta.concept` to implement it |
+| **Complete** | Maintain, update description if meaning changes |
+| **Deprecated** | Set `replaced_by`, update relationships |
+
+### Deprecating Concepts
+
+When a concept is replaced:
+
+```yaml
+concepts:
+  legacy_customer:
+    name: "Customer (Legacy)"
+    domain: party
+    replaced_by: customer
+    description: |
+      Deprecated. Use 'customer' instead.
+      
+      This concept was used in the old CRM system.
+```
+
+The `replaced_by` field marks it deprecated and points to the replacement.
+
+---
+
+## Relationships
+
+After defining concepts, connect them with relationships:
+
+```yaml
+relationships:
+  - name: places
+    from: customer
+    to: order
+    cardinality: "1:N"
+    description: "A customer places one or more orders"
+```
+
+See [Concepts & Relationships](../core-concepts/concepts-and-relationships.md) for details.
+
+---
+
+## Checklist
+
+When defining a concept, verify:
+
+- [ ] Name is a singular noun in business language
+- [ ] Domain is assigned
+- [ ] Description answers "what is this?"
+- [ ] Description states what's included/excluded
+- [ ] Owner is set (or inherited from domain)
+- [ ] Relationships to other concepts are defined
+
+---
+
+## Examples
+
+### Good Example
+
+```yaml
+concepts:
+  order:
+    name: "Order"
+    domain: transaction
+    owner: orders-team
+    description: |
+      A confirmed purchase by a customer.
+      
+      Created when payment is authorized. Contains one or more 
+      order lines, each referencing a product.
+      
+      Excludes:
+      - Abandoned carts (see: cart)
+      - Draft orders pending payment
+      - Cancelled orders (status = cancelled, still an Order)
+    meta:
+      source_system: "shopify"
+```
+
+### Minimal But Sufficient
+
+```yaml
+concepts:
+  payment:
+    name: "Payment"
+    domain: transaction
+    description: |
+      A payment transaction against an order.
+      An order may have multiple payments (split tender).
+```
+
+### Too Sparse
+
+```yaml
+concepts:
+  payment:
+    name: "Payment"
+    domain: transaction
+    # No description — what's a payment? What's included/excluded?
+```

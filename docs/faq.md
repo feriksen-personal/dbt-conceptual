@@ -1,135 +1,179 @@
 # FAQ
 
-## How is this different from dbt exposures?
-
-Exposures document downstream consumers — "this dashboard uses these models." dbt-conceptual documents upstream meaning — "this model implements the Customer concept."
-
-Exposures answer: "who uses this data?"
-Concepts answer: "what does this data mean?"
-
-They're complementary. Use exposures for lineage to BI tools and applications. Use dbt-conceptual for shared vocabulary and business definitions.
+Frequently asked questions.
 
 ---
 
-## Why not just use a data catalog?
+## General
 
-Data catalogs (Atlan, Alation, Collibra, Purview) are systems of record for governance. dbt-conceptual is a system of capture — where concepts are defined alongside the code that implements them.
+### What's the difference between dbt-conceptual and a data catalog?
 
-Catalogs drift because they're maintained separately from the codebase. Someone has to remember to update the catalog when the model changes. They usually don't.
+A data catalog (Collibra, Alation, Purview) is an enterprise-wide inventory of data assets with access controls, lineage, and compliance features.
 
-dbt-conceptual stays current because it lives in the repo. Definitions travel with the code. CI surfaces drift before it ships.
+dbt-conceptual is lighter — it's a vocabulary layer that lives in your codebase. It defines what concepts mean and tracks which models implement them. It can *feed* a data catalog, but it doesn't replace one.
 
-The relationship: dbt-conceptual *feeds* catalogs, doesn't replace them. Define concepts at the source, push to your catalog of record.
+### Do I need dbt-conceptual if I already have a data catalog?
 
----
+Maybe. If your catalog is well-maintained and current, you might not need another layer. But many teams find that catalog metadata drifts because it's disconnected from the development workflow.
 
-## Isn't this just ERD tooling in git?
+dbt-conceptual keeps the conceptual model in git, validated in CI, updated as part of normal development. It can sync to your catalog to keep it current.
 
-ERDs model structure — entities, attributes, relationships at the physical level. The goal is DDL generation and schema documentation.
+### Is this the same as dbt's documentation?
 
-dbt-conceptual models *meaning* — business concepts, ownership, shared vocabulary. No attribute-level detail. No logical→physical derivation. No DDL generation.
+No. dbt docs describe *models* — what columns they have, how they're built. dbt-conceptual describes *concepts* — business vocabulary that exists independent of implementation.
 
-Think of it this way:
-- ERD: "The `customers` table has columns `id`, `name`, `email`, `created_at`"
-- dbt-conceptual: "Customer means a person or company that purchases products. Owned by the customer team. Implemented by `dim_customer`."
-
-The boxes on the whiteboard, not the schema diagram.
+A model is `dim_customer`. A concept is "Customer" — a person or company that purchases products. Multiple models might implement the same concept.
 
 ---
 
-## What about dbt Mesh and cross-project refs?
+## Adoption
 
-dbt Mesh solves project boundaries and contract enforcement — how do multiple dbt projects share models safely?
+### How long does adoption take?
 
-dbt-conceptual solves shared vocabulary — what do the concepts mean, and who owns them?
+Depends on your project size:
 
-If you're using Mesh, dbt-conceptual helps ensure the concepts exposed across project boundaries have consistent definitions. The `customer` in Project A should mean the same thing as the `customer` referenced by Project B.
+| Size | Timeline |
+|------|----------|
+| Small (< 50 models) | Days |
+| Medium (50-200 models) | Weeks |
+| Large (200+ models) | Months |
 
-Complementary layers: Mesh handles the plumbing, dbt-conceptual handles the semantics.
+Start with the gold layer. Don't try to cover everything at once.
 
----
+### Should I tag every model?
 
-## Why YAML instead of a visual-first tool?
+No. Focus on business-meaningful models — typically your gold/mart layer. Staging and intermediate models often don't need tags.
 
-Because YAML is what CI/CD, version control, and code review understand.
+### What if I don't know who owns a concept?
 
-The visual UI exists — it's good for exploration, editing, and onboarding. But the source of truth is text that lives with your dbt project. That's what makes it *operational*:
+Use `UNKNOWN` as a placeholder:
 
-- Changes go through pull requests
-- Drift surfaces in CI
-- History lives in git
-- No separate system to keep in sync
+```yaml
+concepts:
+  mystery_table:
+    domain: party
+    owner: UNKNOWN
+```
 
-Visual-first tools create beautiful diagrams that drift. dbt-conceptual gives you both: a visual canvas for exploration and editing, backed by YAML that lives in your repo. The UI is the interface; the code is what survives.
-
----
-
-## How is this different from a semantic layer (dbt Semantic Layer, Cube, etc.)?
-
-Semantic layers define metrics and dimensions for consumption — "revenue is sum of amount where status = 'completed'". They're query interfaces for BI tools.
-
-dbt-conceptual defines business concepts for shared understanding — "Order means a confirmed purchase by a customer". It's vocabulary, not calculation.
-
-| | Semantic Layer | dbt-conceptual |
-|---|----------------|----------------|
-| **Purpose** | Metrics for BI | Vocabulary for teams |
-| **Granularity** | Measures, dimensions | Concepts, relationships |
-| **Consumer** | Analysts, dashboards | Engineers, architects |
-| **Output** | Query API | Documentation, validation |
-
-You might use both: semantic layer for "how do I query revenue?", dbt-conceptual for "what does Customer mean across our organization?"
+This makes gaps visible. Fix them later.
 
 ---
 
-## Do I need an architect to use this?
+## Technical
 
-No. But you need someone who cares about shared vocabulary.
+### Does dbt-conceptual slow down dbt runs?
 
-That might be a principal engineer who's tired of answering "what does this table mean?" It might be a data lead who notices naming drift across teams. It might be an analytics engineer who wants to document the domain model they carry in their head.
+No. The conceptual model is metadata only — it doesn't affect dbt build, test, or run commands.
 
-The tool is lightweight enough for a single person to maintain. The value compounds when the whole team references it.
+### Can I use this with dbt Cloud?
 
----
+Yes. The conceptual model is just files in your repo. CI validation works in dbt Cloud's CI jobs.
 
-## What if nobody maintains the conceptual model?
+The web UI (`dcm serve`) is for local development — it's not hosted in dbt Cloud.
 
-Then it drifts and becomes useless — just like any documentation.
+### What dbt versions are supported?
 
-dbt-conceptual doesn't solve organizational problems. If nobody owns shared vocabulary today, this tool won't magically create ownership. That's a people problem.
+dbt-core 1.5 and higher.
 
-What it *does* do: lower the barrier. If maintaining a conceptual model previously meant Erwin licenses and a formal review process, most teams skipped it. If it's a YAML file in the repo with CI validation, the friction drops enough that someone *might* actually do it.
+### Can I split the conceptual model across multiple files?
 
----
-
-## Can I use this without the medallion architecture?
-
-The tool assumes Bronze → Silver → Gold layers because that's the most common pattern for dbt projects doing dimensional modeling.
-
-If your architecture is different:
-- **Different folder names?** Configurable via `silver_paths` and `gold_paths`
-- **No medallion at all?** The layer tracking won't map cleanly, but concepts and relationships still work
-- **Not doing dimensional modeling?** The bus matrix and fact/dimension semantics won't apply, but core coverage tracking still works
-
-It's opinionated by design. If the opinions don't fit, the tool may not be for you — and that's fine.
+Not yet. Multi-file support is planned. For now, everything lives in one `conceptual.yml`.
 
 ---
 
-## Is this ready for production?
+## Workflow
 
-It's ready for *use*. Whether it's ready for *your* production depends on your risk tolerance.
+### How do I handle concepts that span multiple domains?
 
-The core functionality — concepts, relationships, coverage tracking, validation, UI — is stable and tested. The extended governance features (maturity, glossary refs, taxonomy) are in development.
+Assign to the primary domain and document the overlap:
 
-It's MIT licensed, open source, no telemetry. Worst case: you try it, it doesn't fit, you delete the YAML file. The only artifact is a file in your repo.
+```yaml
+concepts:
+  customer:
+    domain: party
+    description: |
+      A person or company that purchases products.
+      
+      Used by: Sales, Marketing, Finance
+```
+
+Or use the `meta` block for co-owners.
+
+### What if different teams define the same concept differently?
+
+That's what dbt-conceptual helps prevent. One definition in `conceptual.yml` becomes the shared truth. Disagreements get resolved in PRs, not in meetings six months later.
+
+### How do I deprecate a concept?
+
+Use `replaced_by`:
+
+```yaml
+concepts:
+  legacy_customer:
+    domain: party
+    replaced_by: customer
+```
+
+CI can warn or error when deprecated concepts are used.
 
 ---
 
-## What's "operational conceptual modeling"?
+## Integration
 
-A term we're introducing to describe conceptual models that drive implementation rather than drift from it.
+### Can I export to Confluence/Notion/etc?
 
-Traditional conceptual modeling: whiteboard → formal model → logical model → physical model → implementation. By the time code ships, the conceptual model is already stale.
+Export to HTML or Markdown:
 
-Operational conceptual modeling: conceptual model lives in the repo, validated in CI, connected to the models it describes. It stays current because it's part of the development workflow, not a separate artifact.
+```bash
+dcm export --type coverage --format html -o report.html
+dcm export --type diagram --format svg -o model.svg
+```
 
-The boxes on the whiteboard, operationalized.
+Upload to your wiki manually or automate it.
+
+### Does it work with Unity Catalog?
+
+Yes. Use `dcm apply --propagate-tags` to write domain and owner to dbt model tags, which flow to Unity Catalog.
+
+### Can I import from an existing data dictionary?
+
+There's no built-in import, but the YAML format is simple. Write a script to transform your spreadsheet/export into `conceptual.yml` format.
+
+---
+
+## Troubleshooting
+
+### The UI shows no concepts
+
+Run `dcm sync` to load from your dbt project. If you haven't defined any concepts yet, run `dcm init` first.
+
+### Validation fails on everything
+
+You probably have strict settings. Start with warnings:
+
+```yaml
+vars:
+  dbt_conceptual:
+    validation:
+      orphan_models: warn
+      unimplemented_concepts: warn
+```
+
+### Changes aren't saving
+
+Check file permissions on `conceptual.yml`. The UI needs write access.
+
+### Ghost concepts appearing
+
+A model references a concept that doesn't exist. Either:
+- Define the concept in `conceptual.yml`
+- Run `dcm sync --create-stubs`
+- Fix the typo in `meta.concept`
+
+---
+
+## Getting Help
+
+- **GitHub Issues:** Bug reports, feature requests
+- **GitHub Discussions:** Questions, patterns, community help
+- **Documentation:** You're reading it!
