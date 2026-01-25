@@ -1,121 +1,58 @@
 # Export Formats
 
-Reference for `dcm export` command output formats.
+All available export types and formats.
 
-## Command Syntax
+---
+
+## Export Command
 
 ```bash
-dcm export --type <type> --format <format> [-o <output-file>]
+dcm export --type TYPE --format FORMAT [OPTIONS]
 ```
 
-## Export Matrix
+| Option | Description |
+|--------|-------------|
+| `--type` | What to export (required) |
+| `--format` | Output format (required) |
+| `-o, --output` | Write to file instead of stdout |
 
-| Type | svg | html | markdown | json |
-|------|-----|------|----------|------|
-| diagram | Yes | — | — | — |
-| coverage | — | Yes | Yes | Yes |
-| bus-matrix | — | Yes | Yes | Yes |
-| status | — | — | Yes | Yes |
-| orphans | — | — | Yes | Yes |
-| validation | — | — | Yes | Yes |
-| diff | — | — | Yes | Yes |
+---
 
 ## Export Types
-
-### diagram
-
-SVG visualization of the conceptual model.
-
-```bash
-dcm export --type diagram --format svg -o model.svg
-```
-
-Output: Self-contained SVG with embedded styles.
 
 ### coverage
 
 Implementation coverage report.
 
 ```bash
-# Interactive HTML
-dcm export --type coverage --format html -o coverage.html
-
-# Markdown table
 dcm export --type coverage --format markdown
-
-# Structured data
+dcm export --type coverage --format html -o coverage.html
 dcm export --type coverage --format json
 ```
 
-**JSON structure:**
-```json
-{
-  "summary": {
-    "total_concepts": 12,
-    "complete": 8,
-    "draft": 3,
-    "stub": 1,
-    "coverage_percent": 66.7
-  },
-  "domains": [
-    {
-      "name": "party",
-      "concepts": [
-        {
-          "name": "customer",
-          "status": "complete",
-          "silver_models": ["stg_customer"],
-          "gold_models": ["dim_customer"]
-        }
-      ]
-    }
-  ]
-}
-```
+**Formats:** `markdown`, `html`, `json`
 
-### bus-matrix
-
-Kimball-style dimensional coverage matrix.
-
-```bash
-dcm export --type bus-matrix --format html -o matrix.html
-dcm export --type bus-matrix --format markdown
-dcm export --type bus-matrix --format json
-```
-
-**Markdown output:**
-```markdown
-|              | Customer | Product | Time |
-|--------------|----------|---------|------|
-| fact_orders  |    X     |    X    |  X   |
-| fact_returns |    X     |    X    |  X   |
-```
+**Contents:**
+- Overall coverage percentage
+- Coverage by domain
+- Coverage by layer
+- Concept status breakdown
 
 ### status
 
-Summary status of the conceptual model.
+Current status of the conceptual model.
 
 ```bash
 dcm export --type status --format markdown
 dcm export --type status --format json
 ```
 
-**JSON structure:**
-```json
-{
-  "concepts": {
-    "total": 12,
-    "complete": 8,
-    "draft": 3,
-    "stub": 1
-  },
-  "relationships": {
-    "total": 8,
-    "complete": 6,
-    "draft": 2
-  }
-}
-```
+**Formats:** `markdown`, `json`
+
+**Contents:**
+- Concept counts by status
+- Domain summary
+- Validation summary
 
 ### orphans
 
@@ -126,19 +63,11 @@ dcm export --type orphans --format markdown
 dcm export --type orphans --format json
 ```
 
-**JSON structure:**
-```json
-{
-  "count": 3,
-  "models": [
-    {
-      "name": "fct_page_views",
-      "path": "models/marts/fct_page_views.sql",
-      "layer": "gold"
-    }
-  ]
-}
-```
+**Formats:** `markdown`, `json`
+
+**Contents:**
+- Orphan models by layer
+- Model paths
 
 ### validation
 
@@ -149,116 +78,183 @@ dcm export --type validation --format markdown
 dcm export --type validation --format json
 ```
 
-**JSON structure:**
-```json
-{
-  "passed": false,
-  "errors": 2,
-  "warnings": 5,
-  "info": 3,
-  "issues": [
-    {
-      "severity": "error",
-      "code": "E001",
-      "message": "Concept 'refund' referenced but not defined",
-      "context": {
-        "relationship": "order:has:refund"
-      }
-    }
-  ]
-}
+**Formats:** `markdown`, `json`
+
+**Contents:**
+- Errors and warnings
+- Validation rule results
+- Recommendations
+
+### diagram
+
+Visual diagram of the conceptual model.
+
+```bash
+dcm export --type diagram --format svg -o model.svg
 ```
+
+**Formats:** `svg`
+
+**Contents:**
+- Concepts as nodes
+- Relationships as edges
+- Domain coloring
+
+### bus-matrix
+
+Dimensional modeling bus matrix.
+
+```bash
+dcm export --type bus-matrix --format markdown
+dcm export --type bus-matrix --format html -o matrix.html
+dcm export --type bus-matrix --format json
+```
+
+**Formats:** `markdown`, `html`, `json`
+
+**Contents:**
+- Facts as rows
+- Dimensions as columns
+- Applicability indicators
 
 ### diff
 
-Changes compared to a base reference.
+Changes compared to a git reference.
 
 ```bash
 dcm export --type diff --format markdown --base main
-dcm export --type diff --format json --base origin/main
+dcm export --type diff --format json --base HEAD~1
 ```
+
+**Formats:** `markdown`, `json`
 
 **Options:**
-- `--base <ref>`: Git reference to compare against (branch, tag, commit)
+- `--base REF` — Git reference to compare against (required)
 
-**JSON structure:**
-```json
-{
-  "has_changes": true,
-  "concepts": {
-    "added": ["refund"],
-    "removed": [],
-    "modified": ["order"]
-  },
-  "relationships": {
-    "added": ["order:has:refund"],
-    "removed": [],
-    "modified": []
-  }
-}
-```
+**Contents:**
+- Added concepts
+- Removed concepts
+- Modified concepts
+- Relationship changes
 
-## Output Options
+### concepts
 
-### File Output
-
-Use `-o` or `--output` to write to a file:
+Raw concept data.
 
 ```bash
-dcm export --type coverage --format html -o coverage.html
+dcm export --type concepts --format json -o concepts.json
+dcm export --type concepts --format yaml
 ```
 
-### Stdout
+**Formats:** `json`, `yaml`
 
-Omit `-o` to write to stdout:
+**Contents:**
+- All concepts with their properties
+- Useful for catalog integrations
+
+---
+
+## Format Details
+
+### markdown
+
+Human-readable tables, suitable for:
+- GitHub job summaries
+- Slack messages
+- Documentation
 
 ```bash
 dcm export --type coverage --format markdown >> $GITHUB_STEP_SUMMARY
 ```
 
-### Piping
+### html
 
-JSON output works well with `jq`:
+Standalone HTML page with styling, suitable for:
+- Sharing with stakeholders
+- Embedding in wikis
+- Archiving
 
 ```bash
-dcm export --type validation --format json | jq '.passed'
-dcm export --type orphans --format json | jq '.count'
-dcm export --type diff --format json --base main | jq '.has_changes'
+dcm export --type coverage --format html -o report.html
 ```
 
-## Common Recipes
+### json
+
+Machine-readable, suitable for:
+- Automation scripts
+- Catalog integrations
+- Custom tooling
+
+```bash
+dcm export --type coverage --format json | jq '.coverage_percent'
+```
+
+### yaml
+
+YAML format for concept data:
+
+```bash
+dcm export --type concepts --format yaml
+```
+
+### svg
+
+Vector graphics for diagrams:
+
+```bash
+dcm export --type diagram --format svg -o model.svg
+```
+
+---
+
+## Examples
 
 ### CI Job Summary
 
-```bash
-echo "## Conceptual Model Status" >> $GITHUB_STEP_SUMMARY
-dcm export --type status --format markdown >> $GITHUB_STEP_SUMMARY
-dcm export --type validation --format markdown >> $GITHUB_STEP_SUMMARY
+```yaml
+- name: Report
+  run: |
+    echo "## Conceptual Model" >> $GITHUB_STEP_SUMMARY
+    dcm export --type coverage --format markdown >> $GITHUB_STEP_SUMMARY
+    echo "## Validation" >> $GITHUB_STEP_SUMMARY
+    dcm export --type validation --format markdown >> $GITHUB_STEP_SUMMARY
 ```
 
-### PR Diff Report
+### Coverage Badge
+
+Extract coverage for a badge:
 
 ```bash
-dcm export --type diff --format markdown --base origin/main >> $GITHUB_STEP_SUMMARY
+COVERAGE=$(dcm export --type coverage --format json | jq -r '.coverage_percent')
+echo "Coverage: ${COVERAGE}%"
 ```
 
-### Coverage Dashboard
+### Catalog Sync
+
+Export for catalog ingestion:
 
 ```bash
-# Generate HTML for hosting
-dcm export --type coverage --format html -o public/coverage.html
-dcm export --type bus-matrix --format html -o public/bus-matrix.html
+dcm export --type concepts --format json -o concepts.json
+# Upload to catalog API
 ```
 
-### Automation Checks
+### Documentation
+
+Generate diagram for docs:
 
 ```bash
-# Fail if validation errors
-dcm export --type validation --format json | jq -e '.passed'
-
-# Fail if orphan models exist
-[ $(dcm export --type orphans --format json | jq '.count') -eq 0 ]
-
-# Check for changes
-dcm export --type diff --format json --base main | jq -e '.has_changes == false'
+dcm export --type diagram --format svg -o docs/assets/conceptual-model.svg
 ```
+
+---
+
+## Output to File
+
+Use `-o` to write to a file instead of stdout:
+
+```bash
+dcm export --type coverage --format html -o coverage.html
+dcm export --type diagram --format svg -o model.svg
+```
+
+Without `-o`, output goes to stdout (useful for piping).

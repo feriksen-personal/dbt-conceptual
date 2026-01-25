@@ -1,147 +1,257 @@
 # Tagging dbt Models
 
-How to link your dbt models to conceptual model definitions.
+How to connect your dbt models to your conceptual model.
 
-## The Tag
+---
 
-Use `meta.concept` to link any dbt model to a concept:
+## The Concept Tag
+
+The connection between a dbt model and a concept is a single tag:
 
 ```yaml
+# models/marts/schema.yml
 models:
   - name: dim_customer
     meta:
-      concept: Customer
+      concept: customer    # ← This links to the concept
 ```
 
-That's it. Dimensions, facts, bridges — they're all concepts. Tag with `meta.concept` and dbt-conceptual handles the rest.
+That's it. This tag says: "This model implements the customer concept."
 
-## Tag Placement
+---
 
-Tags go in your model's YAML file, typically `schema.yml` or a dedicated model YAML.
+## Where to Add Tags
+
+Tags go in your dbt schema YAML files, in the `meta` block:
 
 ```yaml
-# models/gold/schema.yml
 version: 2
 
 models:
   - name: dim_customer
-    description: "Customer dimension"
+    description: "Customer dimension table"
     meta:
-      concept: Customer
+      concept: customer
     columns:
       - name: customer_key
         description: "Surrogate key"
 ```
 
-## Dimensions
+You can add the tag to any model — staging, intermediate, or marts.
 
-Dimensions implement a single concept. They answer "What is X?"
+---
 
-```yaml
-# dim_customer implements the Customer concept
-- name: dim_customer
-  meta:
-    concept: Customer
+## Multiple Models, One Concept
 
-# dim_product implements the Product concept
-- name: dim_product
-  meta:
-    concept: Product
-```
-
-One concept can have multiple implementing dimensions:
+A concept can have multiple implementing models:
 
 ```yaml
-# Both implement Customer
-- name: dim_customer
-  meta:
-    concept: Customer
-
-- name: dim_customer_snapshot
-  meta:
-    concept: Customer
-```
-
-## Facts and Bridges
-
-Facts and bridges are also concepts. They represent business events or associations.
-
-```yaml
-# Order is a concept (the event of ordering)
-- name: fct_orders
-  meta:
-    concept: Order
-
-# CustomerPolicy is a bridge concept (the association between customer and policy)
-- name: bridge_customer_policy
-  meta:
-    concept: CustomerPolicy
-```
-
-The relationships between these concepts are defined in your conceptual model:
-
-```yaml
-# In conceptual.yml
-concepts:
-  Customer:
-    name: Customer
-  Order:
-    name: Order
-  CustomerPolicy:
-    name: Customer Policy
-
-relationships:
-  - name: places
-    from: Customer
-    to: Order
-    cardinality: "1:N"
-
-  - name: has
-    from: Customer
-    to: CustomerPolicy
-    cardinality: "1:N"
-
-  - name: covers
-    from: CustomerPolicy
-    to: Policy
-    cardinality: "N:1"
-```
-
-This replaces N:M relationships with explicit bridge concepts connected via 1:N relationships.
-
-## Silver Layer
-
-Silver models can also be tagged:
-
-```yaml
-# models/silver/schema.yml
 models:
-  - name: stg_customers
+  - name: stg_salesforce__customers
     meta:
-      concept: Customer
-
-  - name: stg_orders
+      concept: customer    # Bronze/staging
+      
+  - name: int_customer_dedupe
     meta:
-      concept: Order
+      concept: customer    # Silver/intermediate
+      
+  - name: dim_customer
+    meta:
+      concept: customer    # Gold/mart
 ```
 
-This shows which concepts have staging implementations.
+This is normal — a concept represents a business entity, and that entity might appear at multiple layers of your transformation pipeline.
 
-## Validation
+---
 
-After tagging, validate your model:
+## What to Tag
+
+### Tag: Business-Meaningful Models
+
+| Model | Tag? | Why |
+|-------|------|-----|
+| `dim_customer` | ✅ | Core business dimension |
+| `fct_orders` | ✅ | Core business fact |
+| `mart_revenue` | ✅ | Business-facing mart |
+
+### Skip: Utility Models
+
+| Model | Tag? | Why |
+|-------|------|-----|
+| `util_date_spine` | ❌ | Technical utility, not a business concept |
+| `int_dedupe_helper` | ❌ | Intermediate plumbing |
+| `stg_raw__load_audit` | ❌ | System metadata |
+
+### Judgment: Staging Models
+
+Staging models are borderline. Tag them if:
+- You want full lineage from source to mart
+- The staging model represents a meaningful business entity
+
+Skip them if:
+- You're focused on gold-layer coverage first
+- The staging model is pure transformation plumbing
+
+---
+
+## Concept Must Exist
+
+The concept you reference must exist in `conceptual.yml`:
+
+```yaml
+# conceptual.yml
+concepts:
+  customer:
+    name: "Customer"
+    domain: party
+```
+
+If you tag a model with a concept that doesn't exist, it becomes a **ghost concept** — a validation error.
+
+### Creating Stubs Automatically
+
+If you have models tagged with concepts that don't exist yet:
+
+```bash
+dcm sync --create-stubs
+```
+
+This creates stub entries in `conceptual.yml` for any referenced but undefined concepts.
+
+---
+
+## Validating Tags
+
+Check that all tags are valid:
 
 ```bash
 dcm validate
 ```
 
-Common issues:
-- **Unknown concept reference** — Concept doesn't exist in conceptual.yml
-- **Orphan model** — Model in silver/gold path without tags
+This catches:
+- Tags referencing undefined concepts (ghosts)
+- Models without tags (orphans, if configured to error)
+- Typos in concept names
 
-## Best Practices
+---
 
-1. **Tag early** — Add meta tags when creating new models
-2. **One concept per model** — Keep models focused
-3. **Bridge concepts are concepts** — Don't think of them differently
-4. **Use stubs for discovery** — `dcm sync --create-stubs` finds untagged models
+## Orphan Detection
+
+Find models without concept tags:
+
+```bash
+dcm orphans
+```
+
+```
+Orphan models (no meta.concept tag):
+
+Gold layer:
+  - mart_revenue_summary
+  - dim_date
+
+Silver layer:
+  - int_order_enriched
+```
+
+Not every orphan is a problem — utility models don't need tags. But orphans in your gold layer often indicate gaps.
+
+---
+
+## Tag via Properties File
+
+If you prefer keeping tags separate from descriptions:
+
+```yaml
+# models/marts/_properties.yml
+models:
+  - name: dim_customer
+    meta:
+      concept: customer
+      
+  - name: fct_orders
+    meta:
+      concept: order
+```
+
+dbt merges properties from multiple files, so this works alongside your main schema.yml.
+
+---
+
+## Common Patterns
+
+### Dimensional Model
+
+```yaml
+models:
+  # Dimensions
+  - name: dim_customer
+    meta:
+      concept: customer
+      
+  - name: dim_product
+    meta:
+      concept: product
+      
+  - name: dim_date
+    meta:
+      concept: date
+
+  # Facts
+  - name: fct_orders
+    meta:
+      concept: order
+      
+  - name: fct_payments
+    meta:
+      concept: payment
+```
+
+### One Big Table (OBT)
+
+Even wide tables can be tagged:
+
+```yaml
+models:
+  - name: obt_customer_360
+    meta:
+      concept: customer
+      # This model combines customer with their orders, 
+      # but the primary entity is customer
+```
+
+### Bridge Tables
+
+Bridge tables that represent many-to-many relationships:
+
+```yaml
+models:
+  - name: bridge_order_product
+    meta:
+      concept: order_line
+      # The bridge represents the order_line concept
+```
+
+---
+
+## Adding to Existing Projects
+
+If you have many models without tags:
+
+1. **Start with gold layer** — Tag your mart/dimension/fact models first
+2. **Use sync** — `dcm sync --create-stubs` creates concepts for tagged models
+3. **Work backward** — Add silver layer tags later if desired
+
+See [Adopting in Existing Projects](adoption.md) for a full guide.
+
+---
+
+## Checklist
+
+When tagging models:
+
+- [ ] Concept exists in `conceptual.yml`
+- [ ] Concept name is spelled correctly
+- [ ] Business-meaningful models are tagged
+- [ ] Utility models are intentionally skipped
+- [ ] `dcm validate` passes

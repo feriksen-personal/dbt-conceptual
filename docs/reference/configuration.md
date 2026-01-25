@@ -1,26 +1,32 @@
 # Configuration
 
-Configure dbt-conceptual in your `dbt_project.yml`.
+All configuration options for dbt-conceptual.
+
+---
 
 ## Configuration Location
 
-Add settings under `vars.dbt_conceptual`:
+Configuration lives in your `dbt_project.yml` under the `vars.dbt_conceptual` key:
 
 ```yaml
 # dbt_project.yml
-name: my_dbt_project
+name: my_project
 version: '1.0.0'
 
 vars:
   dbt_conceptual:
-    # settings go here
+    conceptual_path: models/conceptual
+    validation:
+      orphan_models: warn
 ```
 
-## Path Configuration
+---
+
+## Core Settings
 
 ### conceptual_path
 
-Location of the conceptual model YAML file.
+Where the conceptual model lives.
 
 ```yaml
 vars:
@@ -30,211 +36,229 @@ vars:
 
 The tool looks for `conceptual.yml` in this directory.
 
-### bronze_paths
+---
 
-Paths to bronze/raw layer models. Models here are inferred via lineage.
+## Validation Settings
 
-```yaml
-vars:
-  dbt_conceptual:
-    bronze_paths:
-      - models/bronze   # default
-      - models/raw
-```
-
-### silver_paths
-
-Paths to silver layer models. Models here can use `meta.concept`.
-
-```yaml
-vars:
-  dbt_conceptual:
-    silver_paths:
-      - models/silver       # default
-      - models/staging
-      - models/intermediate
-```
-
-### gold_paths
-
-Paths to gold layer models. Models here use `meta.concept`.
-
-```yaml
-vars:
-  dbt_conceptual:
-    gold_paths:
-      - models/gold    # default
-      - models/marts
-      - models/presentation
-```
-
-## Lineage Inference
-
-Models are associated with concepts through two mechanisms:
-
-1. **Explicit tagging**: Add `meta.concept: <concept_id>` to a model
-2. **Lineage inference**: Models upstream/downstream of tagged models are automatically associated
-
-When a model has `meta.concept`:
-- **Upstream models** (bronze/silver) are inferred via refs
-- **Downstream models** (gold) are inferred via dependents
-- Inferred models appear with a lock icon in the UI
-
-Explicit tags always take precedence over inference. If a downstream model has its own `meta.concept`, it belongs to that concept rather than being inferred.
-
-```
-hub_customer (silver, meta.concept: customer)  <- explicit
-  |
-  +-- stg_orders (bronze)                      <- inferred upstream
-  +-- dim_customer (gold)                      <- inferred downstream
-```
-
-This enables flexible architectures:
-- **Gold-centric**: Tag dims/facts, infer silver/bronze
-- **Silver-centric**: Tag hubs/satellites (Data Vault), infer gold
-
-### Multi-Concept Inference
-
-A model can be inferred from multiple concepts when it's upstream or downstream of multiple tagged models:
-
-```
-stg_orders (bronze)                      <- inferred: customer, product
-  |
-  +-- hub_customer (silver, meta.concept: customer)
-  +-- hub_product (silver, meta.concept: product)
-  |
-  +-- dim_customer_products (gold)       <- inferred: customer, product
-```
-
-This is intentional—shared staging or mart models naturally relate to multiple concepts. The UI shows all inferred concepts for such models.
-
-## Validation Configuration
-
-Configure validation rule severities under `validation`:
+Control what gets validated and at what severity.
 
 ```yaml
 vars:
   dbt_conceptual:
     validation:
-      orphan_models: warn           # default: warn
-      unimplemented_concepts: warn  # default: warn
-      unrealized_relationships: warn # default: warn
-      missing_definitions: ignore   # default: ignore
+      orphan_models: warn              # Models without concept tags
+      unimplemented_concepts: warn     # Concepts without implementing models
+      missing_descriptions: ignore     # Concepts without descriptions
+      invalid_references: error        # Relationships to undefined concepts
+      invalid_domains: error           # Concepts referencing undefined domains
 ```
 
-### Severity Options
+### Severity Levels
 
-| Value | Behavior |
+| Level | Behavior |
 |-------|----------|
-| `error` | Fails validation, exit code 1 |
+| `error` | Fails validation (exit code 1) |
 | `warn` | Shows warning, passes validation |
-| `ignore` | Suppressed, no output |
+| `ignore` | Not checked |
 
-### Validation Rules
+### Layer-Specific Validation
 
-| Rule | Description |
-|------|-------------|
-| `orphan_models` | Models in silver/gold without concept tags |
-| `unimplemented_concepts` | Concepts without implementing models |
-| `unrealized_relationships` | Relationships not traced by any model |
-| `missing_definitions` | Concepts without definition text |
-
-## Tag Validation
-
-Enable tag drift detection:
+Different rules per layer:
 
 ```yaml
 vars:
   dbt_conceptual:
     validation:
-      tag_validation:
-        enabled: true
-        domains:
-          allow_multiple: true    # Allow multiple domain tags
-          format: standard        # "standard" or "databricks"
+      gold:
+        orphan_models: error      # Strict for gold
+      silver:
+        orphan_models: warn       # Lenient for silver
+      bronze:
+        orphan_models: ignore     # Don't check bronze
 ```
 
-### Tag Formats
+---
 
-**Standard format** (default):
-```yaml
-models:
-  - name: dim_customer
-    config:
-      tags:
-        - "domain:party"
-        - "owner:customer_team"
-```
+## Layer Configuration
 
-**Databricks Unity Catalog format**:
-```yaml
-models:
-  - name: dim_customer
-    config:
-      databricks_tags:
-        domain: party
-        owner: customer_team
-```
+### Custom Layer Definitions
 
-### Tag Validation Codes
-
-| Code | Description |
-|------|-------------|
-| T001 | Missing domain tag |
-| T002 | Wrong domain tag (doesn't match concept) |
-| T003 | Multiple domain tags (when not allowed) |
-| T004 | Missing owner tag |
-| T005 | Wrong owner tag |
-
-## Complete Example
+Override default layer detection:
 
 ```yaml
-# dbt_project.yml
-name: ecommerce_analytics
-version: '1.0.0'
-
 vars:
   dbt_conceptual:
-    conceptual_path: models/conceptual
-
-    bronze_paths:
-      - models/raw
-      - models/landing
-
-    silver_paths:
-      - models/staging
-      - models/intermediate
-
-    gold_paths:
-      - models/marts
-      - models/reports
-
-    validation:
-      orphan_models: warn
-      unimplemented_concepts: error  # strict
-      unrealized_relationships: warn
-      missing_definitions: warn
-
-      tag_validation:
-        enabled: true
-        domains:
-          allow_multiple: false
-          format: standard
+    layers:
+      bronze:
+        paths: ["models/staging", "models/raw"]
+        prefixes: ["stg_", "raw_"]
+      silver:
+        paths: ["models/intermediate"]
+        prefixes: ["int_", "prep_"]
+      gold:
+        paths: ["models/marts", "models/reporting"]
+        prefixes: ["dim_", "fct_", "mart_", "rpt_"]
 ```
 
-## Default Values
+### Default Detection
 
-If no configuration is provided:
+If not configured, layers are detected by:
 
-| Setting | Default |
-|---------|---------|
-| `conceptual_path` | `models/conceptual` |
-| `bronze_paths` | `["models/bronze", "models/raw"]` |
-| `silver_paths` | `["models/silver"]` |
-| `gold_paths` | `["models/gold"]` |
-| All validation rules | `warn` (except `missing_definitions`: `ignore`) |
-| `tag_validation.enabled` | `false` |
+| Layer | Paths | Prefixes |
+|-------|-------|----------|
+| Gold | `marts`, `gold`, `reporting` | `dim_`, `fct_`, `mart_`, `rpt_` |
+| Silver | `intermediate`, `silver`, `transform` | `int_`, `prep_`, `clean_` |
+| Bronze | `staging`, `bronze`, `raw` | `stg_`, `raw_`, `src_` |
+
+---
+
+## Bus Matrix Configuration
+
+### Explicit Fact/Dimension Lists
+
+```yaml
+vars:
+  dbt_conceptual:
+    bus_matrix:
+      facts:
+        - order
+        - payment
+        - return
+      dimensions:
+        - customer
+        - product
+        - date
+        - store
+```
+
+### Pattern-Based Detection
+
+```yaml
+vars:
+  dbt_conceptual:
+    bus_matrix:
+      fact_prefixes: ["fct_", "fact_"]
+      dimension_prefixes: ["dim_", "dimension_"]
+```
+
+### Exclusions
+
+```yaml
+vars:
+  dbt_conceptual:
+    bus_matrix:
+      exclude:
+        - audit_log
+        - system_config
+```
+
+---
+
+## Governance Settings (Coming Soon)
+
+```yaml
+vars:
+  dbt_conceptual:
+    governance:
+      require_steward: false
+      require_maturity: false
+      require_confidentiality: false
+      enforce_taxonomy: false
+      mention_stewards_on_change: true
+```
+
+See [Governance Features](../scaling-up/governance.md) for details.
+
+---
+
+## Server Settings
+
+CLI options for `dcm serve`:
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--host` | `127.0.0.1` | Host to bind |
+| `--port` | `8050` | Port to bind |
+| `--demo` | false | Load sample data |
+
+These aren't in `dbt_project.yml` — they're CLI arguments.
+
+---
 
 ## Environment Variables
 
-Currently, configuration is only supported via `dbt_project.yml`. Environment variable overrides are not supported.
+| Variable | Description |
+|----------|-------------|
+| `DBT_PROJECT_DIR` | Override project directory |
+| `DCM_CONCEPTUAL_PATH` | Override conceptual path |
+
+CLI flags take precedence over environment variables.
+
+---
+
+## Full Example
+
+```yaml
+# dbt_project.yml
+name: my_analytics_project
+version: '1.0.0'
+config-version: 2
+
+vars:
+  dbt_conceptual:
+    # Where the conceptual model lives
+    conceptual_path: models/conceptual
+    
+    # Validation rules
+    validation:
+      orphan_models: warn
+      unimplemented_concepts: warn
+      missing_descriptions: ignore
+      invalid_references: error
+      
+      # Layer-specific
+      gold:
+        orphan_models: error
+      silver:
+        orphan_models: warn
+      bronze:
+        orphan_models: ignore
+    
+    # Layer detection
+    layers:
+      gold:
+        paths: ["models/marts"]
+        prefixes: ["dim_", "fct_"]
+      silver:
+        paths: ["models/intermediate"]
+        prefixes: ["int_"]
+      bronze:
+        paths: ["models/staging"]
+        prefixes: ["stg_"]
+    
+    # Bus matrix
+    bus_matrix:
+      fact_prefixes: ["fct_"]
+      dimension_prefixes: ["dim_"]
+      exclude: ["util_date_spine"]
+```
+
+---
+
+## Defaults
+
+If no configuration is provided, these defaults apply:
+
+```yaml
+vars:
+  dbt_conceptual:
+    conceptual_path: models/conceptual
+    validation:
+      orphan_models: warn
+      unimplemented_concepts: warn
+      missing_descriptions: ignore
+      invalid_references: error
+      invalid_domains: error
+```
+
+The tool works out of the box with sensible defaults.

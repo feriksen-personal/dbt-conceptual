@@ -1,20 +1,42 @@
 # Quick Start
 
-This guide walks you through creating your first conceptual model in an existing dbt project.
+Get from zero to a working conceptual model in 5 minutes.
 
-## 1. Initialize
+---
 
-Navigate to your dbt project root and run:
+## 1. Install
+
+```bash
+pip install dbt-conceptual
+```
+
+---
+
+## 2. Initialize
+
+In your dbt project root:
 
 ```bash
 dcm init
 ```
 
-This creates `models/conceptual/conceptual.yml` with a starter template.
+This creates `models/conceptual/conceptual.yml`:
 
-## 2. Define Concepts
+```yaml
+version: 1
 
-Edit `models/conceptual/conceptual.yml`:
+domains: {}
+
+concepts: {}
+
+relationships: []
+```
+
+---
+
+## 3. Add a Domain and Concept
+
+Edit `conceptual.yml`:
 
 ```yaml
 version: 1
@@ -22,77 +44,61 @@ version: 1
 domains:
   party:
     name: "Party"
-  transaction:
-    name: "Transaction"
+    owner: data-team
 
 concepts:
   customer:
     name: "Customer"
     domain: party
-    owner: customer_team
-    definition: "A person or company that purchases products"
+    description: |
+      A person or company that purchases products.
 
-  order:
-    name: "Order"
-    domain: transaction
-    owner: orders_team
-    definition: "A confirmed purchase by a customer"
-
-relationships:
-  - name: places
-    from: customer
-    to: order
-    cardinality: "1:N"
+relationships: []
 ```
 
-## 3. Tag dbt Models
+---
 
-Add `meta.concept` to your existing dbt models:
+## 4. Tag a dbt Model
+
+In your dbt schema file (e.g., `models/marts/schema.yml`):
 
 ```yaml
-# models/gold/dim_customer.yml
 models:
   - name: dim_customer
     meta:
       concept: customer
 ```
 
-For facts — they're concepts too:
+---
 
-```yaml
-# models/gold/fct_orders.yml
-models:
-  - name: fct_orders
-    meta:
-      concept: Order
-```
-
-## 4. Check Status
+## 5. Sync and Check Status
 
 ```bash
+dcm sync
 dcm status
 ```
 
-See which concepts are implemented, which are drafts, and which are stubs.
+```
+Concepts: 1 total
+  - 1 complete ✓
 
-## 5. Validate
-
-```bash
-dcm validate
+Coverage: 100%
 ```
 
-Check for broken references, missing definitions, and other issues.
+---
 
-## 6. Explore the UI
+## 6. Launch the UI
 
 ```bash
 dcm serve
 ```
 
-Open your browser to visualize and edit your conceptual model interactively.
+Open `http://localhost:8050` to see your conceptual model.
 
-## Next Steps
+---
 
-- [How It Works](../concepts/how-it-works.md) — Understand the underlying model
-- [Defining Concepts](../guides/defining-concepts.md) — Best practices for concept definitions
-- [CI/CD Integration](../guides/ci-integration.md) — Add validation to your pipeline
+## What's Next?
+
+- [Tutorial](tutorial.md) — Build a complete e-commerce model step by step
+- [Defining Concepts](../guides/defining-concepts.md) — Write better concept descriptions
+- [CI/CD Integration](../guides/ci-cd.md) — Validate in your pipeline

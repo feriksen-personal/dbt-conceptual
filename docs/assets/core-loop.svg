@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 200" fill="none">
+  <defs>
+    <linearGradient id="orangeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e67e22"/>
+      <stop offset="100%" stop-color="#d35400"/>
+    </linearGradient>
+    <linearGradient id="grayGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#888888"/>
+      <stop offset="100%" stop-color="#666666"/>
+    </linearGradient>
+    <linearGradient id="greenGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#27ae60"/>
+      <stop offset="100%" stop-color="#1e8449"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="800" height="200" fill="#fafaf9"/>
+  
+  <!-- Step 1: Define -->
+  <g transform="translate(60, 50)">
+    <rect width="180" height="100" rx="8" fill="white" stroke="#e67e22" stroke-width="2"/>
+    <rect width="180" height="32" rx="8" fill="url(#orangeGradient)"/>
+    <rect y="24" width="180" height="8" fill="url(#orangeGradient)"/>
+    
+    <text x="90" y="22" font-family="Inter, -apple-system, sans-serif" font-size="12" font-weight="600" fill="white" text-anchor="middle">1. Define Concepts</text>
+    
+    <text x="16" y="55" font-family="monospace" font-size="10" fill="#e67e22">conceptual.yml</text>
+    <text x="16" y="75" font-family="Inter, -apple-system, sans-serif" font-size="10" fill="#888888">• Concepts &amp; relationships</text>
+    <text x="16" y="90" font-family="Inter, -apple-system, sans-serif" font-size="10" fill="#888888">• Domains, owners</text>
+  </g>
+  
+  <!-- Arrow 1→2 -->
+  <g transform="translate(250, 100)">
+    <line x1="0" y1="0" x2="50" y2="0" stroke="#888888" stroke-width="2" stroke-linecap="round"/>
+    <polygon points="48,-5 60,0 48,5" fill="#888888"/>
+  </g>
+  
+  <!-- Step 2: Tag -->
+  <g transform="translate(310, 50)">
+    <rect width="180" height="100" rx="8" fill="white" stroke="#888888" stroke-width="2"/>
+    <rect width="180" height="32" rx="8" fill="url(#grayGradient)"/>
+    <rect y="24" width="180" height="8" fill="url(#grayGradient)"/>
+    
+    <text x="90" y="22" font-family="Inter, -apple-system, sans-serif" font-size="12" font-weight="600" fill="white" text-anchor="middle">2. Tag dbt Models</text>
+    
+    <text x="16" y="55" font-family="monospace" font-size="10" fill="#888888">schema.yml</text>
+    <text x="16" y="75" font-family="Inter, -apple-system, sans-serif" font-size="10" fill="#888888">• meta.concept: customer</text>
+    <text x="16" y="90" font-family="Inter, -apple-system, sans-serif" font-size="10" fill="#888888">• Links model → concept</text>
+  </g>
+  
+  <!-- Arrow 2→3 -->
+  <g transform="translate(500, 100)">
+    <line x1="0" y1="0" x2="50" y2="0" stroke="#888888" stroke-width="2" stroke-linecap="round"/>
+    <polygon points="48,-5 60,0 48,5" fill="#888888"/>
+  </g>
+  
+  <!-- Step 3: Validate -->
+  <g transform="translate(560, 50)">
+    <rect width="180" height="100" rx="8" fill="white" stroke="#27ae60" stroke-width="2"/>
+    <rect width="180" height="32" rx="8" fill="url(#greenGradient)"/>
+    <rect y="24" width="180" height="8" fill="url(#greenGradient)"/>
+    
+    <text x="90" y="22" font-family="Inter, -apple-system, sans-serif" font-size="12" font-weight="600" fill="white" text-anchor="middle">3. Validate in CI</text>
+    
+    <text x="16" y="55" font-family="monospace" font-size="10" fill="#27ae60">dcm validate</text>
+    <text x="16" y="75" font-family="Inter, -apple-system, sans-serif" font-size="10" fill="#888888">• Coverage check</text>
+    <text x="16" y="90" font-family="Inter, -apple-system, sans-serif" font-size="10" fill="#888888">• Drift detection</text>
+  </g>
+</svg>

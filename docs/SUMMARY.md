@@ -1,53 +1,54 @@
 # Table of Contents
 
-* [Introduction](README.md)
+* [What is dbt-conceptual?](README.md)
 
 ## Getting Started
 
-* [Overview](getting-started/README.md)
 * [Installation](getting-started/installation.md)
 * [Quick Start](getting-started/quick-start.md)
+* [Tutorial: Your First Conceptual Model](getting-started/tutorial.md)
 
 ## Core Concepts
 
-* [Why Conceptual Models Matter](concepts/README.md)
-* [Operational Conceptual Modeling](concepts/operational.md)
-* [How It Works](concepts/how-it-works.md)
-* [Layer Model](concepts/layer-model.md)
-* [Governance](concepts/governance.md)
+* [Concepts & Relationships](core-concepts/concepts-and-relationships.md)
+* [Domains](core-concepts/domains.md)
+* [Layers](core-concepts/layers.md)
+* [Status & Coverage](core-concepts/status-and-coverage.md)
 
 ## Guides
 
-* [Overview](guides/README.md)
-* [Adoption Workflows](guides/adoption/choosing-your-approach.md)
-  * [Top-Down: Conceptual First](guides/adoption/greenfield-top-down.md)
-  * [Bottom-Up: Models First](guides/adoption/greenfield-bottom-up.md)
-  * [Brownfield Adoption](guides/adoption/brownfield-adoption.md)
-  * [Working with Governance](guides/adoption/working-with-governance.md)
 * [Defining Concepts](guides/defining-concepts.md)
 * [Tagging dbt Models](guides/tagging-models.md)
-* [Validation & Messages](guides/validation.md)
-* [CI/CD Integration](guides/ci-integration.md)
+* [Using the Web UI](guides/web-ui.md)
+* [CI/CD Integration](guides/ci-cd.md)
+* [Adopting in Existing Projects](guides/adoption.md)
 
 ## Web UI
 
-* [Overview](ui/README.md)
-* [Canvas Editor](ui/canvas.md)
-* [Coverage View](ui/coverage.md)
-* [Bus Matrix](ui/bus-matrix.md)
+* [Canvas Editor](web-ui/canvas.md)
+* [Coverage View](web-ui/coverage.md)
+* [Bus Matrix](web-ui/bus-matrix.md)
 
 ## Reference
 
-* [Overview](reference/README.md)
 * [CLI Commands](reference/cli.md)
 * [YAML Schema](reference/yaml-schema.md)
 * [Configuration](reference/configuration.md)
 * [Export Formats](reference/exports.md)
-* [Canvas Notation](notation.md)
+* [Validation Codes](reference/validation-codes.md)
+
+## Tips & Best Practices
+
+* [Tips & Best Practices](tips.md)
+
+## Scaling Up
+
+* [Multi-Domain Architecture](scaling-up/multi-domain.md)
+* [Governance Features](scaling-up/governance.md)
+* [Enterprise Patterns](scaling-up/enterprise.md)
 
 ## Resources
 
-* [About](about.md)
 * [FAQ](faq.md)
+* [About](about.md)
 * [Changelog](https://github.com/dbt-conceptual/dbt-conceptual/releases)
-* [Roadmap](https://github.com/dbt-conceptual/dbt-conceptual/issues?q=is%3Aissue+is%3Aopen+label%3Aroadmap)
