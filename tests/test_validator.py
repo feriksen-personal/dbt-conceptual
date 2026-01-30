@@ -243,9 +243,7 @@ def test_complete_concept_no_warnings() -> None:
 
     # Should have no warnings or errors related to this concept
     concept_issues = [
-        i
-        for i in issues
-        if i.context and i.context.get("concept") == "customer"
+        i for i in issues if i.context and i.context.get("concept") == "customer"
     ]
     warnings_and_errors = [
         i for i in concept_issues if i.severity in (Severity.WARNING, Severity.ERROR)

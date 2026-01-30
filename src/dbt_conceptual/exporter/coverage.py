@@ -59,8 +59,7 @@ def export_coverage(state: ProjectState, output: TextIO) -> None:
     incomplete_concepts = [
         (cid, c)
         for cid, c in state.concepts.items()
-        if c.status != "complete"
-        and (not c.domain or not c.owner or not c.definition)
+        if c.status != "complete" and (not c.domain or not c.owner or not c.definition)
     ]
 
     # Write HTML

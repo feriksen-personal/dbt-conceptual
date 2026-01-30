@@ -105,7 +105,9 @@ class RelationshipState:
         """
         return f"{self.from_concept}:{self.verb}:{self.to_concept}"
 
-    def get_status(self, concepts: dict[str, "ConceptState"]) -> Literal["stub", "complete"]:
+    def get_status(
+        self, concepts: dict[str, "ConceptState"]
+    ) -> Literal["stub", "complete"]:
         """Derive status based on endpoint concept states.
 
         Args:
@@ -166,5 +168,7 @@ class ProjectState:
     relationships: dict[str, RelationshipState] = field(default_factory=dict)
     domains: dict[str, DomainState] = field(default_factory=dict)
     orphan_models: list[OrphanModel] = field(default_factory=list)
-    models: dict[str, ModelInfo] = field(default_factory=dict)  # Model info for validation
+    models: dict[str, ModelInfo] = field(
+        default_factory=dict
+    )  # Model info for validation
     metadata: dict[str, str] = field(default_factory=dict)

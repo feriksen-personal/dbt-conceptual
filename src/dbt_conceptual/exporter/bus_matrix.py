@@ -231,7 +231,9 @@ def export_bus_matrix(state: ProjectState, output: TextIO) -> None:
 
             output.write("                    <tr>\n")
             output.write(f"                        <td>{rel.from_concept}</td>\n")
-            output.write(f"                        <td><strong>{rel.verb}</strong></td>\n")
+            output.write(
+                f"                        <td><strong>{rel.verb}</strong></td>\n"
+            )
             output.write(f"                        <td>{rel.to_concept}</td>\n")
             output.write(f"                        <td>{rel.cardinality}</td>\n")
             output.write(

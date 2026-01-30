@@ -55,7 +55,7 @@ class ValidationConfig:
 
         # Check for layer override
         if layer == "gold" and self.gold:
-            layer_override = getattr(self.gold, rule, None)
+            layer_override: Optional[RuleSeverity] = getattr(self.gold, rule, None)
             if layer_override is not None:
                 return layer_override
 
@@ -164,7 +164,11 @@ class Config:
 
         # Parse defaults section
         defaults = data.get("defaults", {})
-        for rule_name in ["orphan_models", "unimplemented_concepts", "missing_definitions"]:
+        for rule_name in [
+            "orphan_models",
+            "unimplemented_concepts",
+            "missing_definitions",
+        ]:
             if rule_name in defaults:
                 severity_str = str(defaults[rule_name]).lower()
                 if severity_str in severity_map:
@@ -174,7 +178,11 @@ class Config:
         gold_data = data.get("gold", {})
         if gold_data:
             gold_config = LayerValidationConfig()
-            for rule_name in ["orphan_models", "unimplemented_concepts", "missing_definitions"]:
+            for rule_name in [
+                "orphan_models",
+                "unimplemented_concepts",
+                "missing_definitions",
+            ]:
                 if rule_name in gold_data:
                     severity_str = str(gold_data[rule_name]).lower()
                     if severity_str in severity_map:

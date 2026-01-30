@@ -291,9 +291,7 @@ def export_status_markdown(state: ProjectState, output: TextIO) -> None:
             status_icon = {"complete": "✅", "draft": "📝", "stub": "⚠️"}.get(
                 c.status, "❓"
             )
-            output.write(
-                f"| {c.name} | {status_icon} {c.status} | {len(c.models)} |\n"
-            )
+            output.write(f"| {c.name} | {status_icon} {c.status} | {len(c.models)} |\n")
         output.write("\n")
 
 

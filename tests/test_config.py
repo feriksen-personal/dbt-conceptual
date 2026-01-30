@@ -29,9 +29,7 @@ def test_config_from_conceptual_yml() -> None:
         # Create conceptual.yml with custom config
         conceptual_data = {
             "config": {
-                "scan": {
-                    "gold": ["models/marts/**/*.yml", "models/semantic/**/*.yml"]
-                },
+                "scan": {"gold": ["models/marts/**/*.yml", "models/semantic/**/*.yml"]},
                 "validation": {
                     "defaults": {
                         "orphan_models": "error",
@@ -49,7 +47,10 @@ def test_config_from_conceptual_yml() -> None:
 
         config = Config.load(project_dir=tmppath)
 
-        assert config.gold_paths == ["models/marts/**/*.yml", "models/semantic/**/*.yml"]
+        assert config.gold_paths == [
+            "models/marts/**/*.yml",
+            "models/semantic/**/*.yml",
+        ]
         assert config.validation.orphan_models == RuleSeverity.ERROR
         assert config.validation.unimplemented_concepts == RuleSeverity.IGNORE
 

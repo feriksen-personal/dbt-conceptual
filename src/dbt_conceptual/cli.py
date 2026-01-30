@@ -182,8 +182,7 @@ def status(
     incomplete_concepts = [
         (cid, c)
         for cid, c in state.concepts.items()
-        if c.status != "complete"
-        and (not c.domain or not c.owner or not c.definition)
+        if c.status != "complete" and (not c.domain or not c.owner or not c.definition)
     ]
 
     if incomplete_concepts:
@@ -204,9 +203,7 @@ def status(
             console.print(
                 f"  • {concept_id} [{concept.status}] - missing: {', '.join(missing)}"
             )
-        console.print(
-            "\n[dim]Edit conceptual.yml to add missing attributes[/dim]"
-        )
+        console.print("\n[dim]Edit conceptual.yml to add missing attributes[/dim]")
 
     console.print()
 
@@ -469,7 +466,7 @@ def _output_human_format(
         if rel_status == "complete":
             console.print(f"  [green]✓[/green] {rel.cardinality}")
         else:
-            console.print(f"  [yellow]○ stub[/yellow]")
+            console.print("  [yellow]○ stub[/yellow]")
 
     # Display validation issues
     if issues:
@@ -629,9 +626,7 @@ def sync(project_dir: Optional[Path], create_stubs: bool, model: Optional[str]) 
         else:
             console.print(f"[yellow]Model '{model}' is not an orphan[/yellow]")
             if model in [m for c in state.concepts.values() for m in c.models]:
-                console.print(
-                    f"Model '{model}' is already mapped to a concept"
-                )
+                console.print(f"Model '{model}' is already mapped to a concept")
             else:
                 console.print(f"Model '{model}' not found in project")
             return

@@ -59,7 +59,9 @@ class ConceptualModelParser:
             for domain_id, domain_data in data["domains"].items():
                 state.domains[domain_id] = DomainState(
                     name=domain_id,
-                    display_name=domain_data.get("display_name", domain_data.get("name", domain_id)),
+                    display_name=domain_data.get(
+                        "display_name", domain_data.get("name", domain_id)
+                    ),
                     color=domain_data.get("color"),
                     owner=domain_data.get("owner"),
                 )

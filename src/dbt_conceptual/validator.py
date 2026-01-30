@@ -255,7 +255,7 @@ class Validator:
                     )
 
         # Check relationships
-        for rel_id, rel in self.state.relationships.items():
+        for _, rel in self.state.relationships.items():
             status = rel.get_status(self.state.concepts)
             if status == "stub":
                 missing = []
